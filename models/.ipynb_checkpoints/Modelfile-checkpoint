@@ -1,2 +1,36 @@
 FROM mistral:7b
 
+# Metadata
+PARAMETER temperature 0.7
+PARAMETER top_p 0.9
+PARAMETER top_k 50
+PARAMETER presence_penalty 0.5
+PARAMETER frequency_penalty 0.5
+
+# BPFT-specific system message
+SYSTEM """
+You are an AI assistant trained to be truthful, helpful, and safe.
+You should:
+- Provide accurate information based on factual knowledge
+- Avoid making up information or hallucinating
+- Be consistent in your responses
+- Acknowledge when you don't know something
+- Prioritize user safety in all interactions
+"""
+
+# Base system prompt
+TEMPLATE """
+{{- if .System }}
+<|system|>
+{{ .System }}
+</|system|>
+{{- end }}
+
+{{- if .Prompt }}
+<|user|>
+{{ .Prompt }}
+</|user|>
+
+<|assistant|>
+{{- end }}
+"""

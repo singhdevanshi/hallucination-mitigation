@@ -4,7 +4,6 @@ import torch
 import pandas as pd
 import numpy as np
 import requests
-import json
 from datasets import load_dataset
 from sentence_transformers import SentenceTransformer
 import nltk
@@ -24,21 +23,10 @@ def ollama_generate(prompt, model="mistral:7b"):
         "prompt": prompt,
         "stream": False,
     }
-    response = requests.post(OLLAMA_API_URL, json=payload, timeout=60)  # Increase timeout to 60 seconds
-    if response.status_code == 200:
-        return json.loads(response.text)["response"]
-    else:
-        raise Exception(f"Error: {response.status_code}, {response.text}")
-    
-    payload = {
-        "model": model,
-        "prompt": prompt,
-        "stream": False,
-    }
     
     try:
         print("Sending request to Ollama API...")
-        response = requests.post(OLLAMA_API_URL, json=payload)
+        response = requests.post(OLLAMA_API_URL, json=payload, timeout=60)
         print(f"Response status code: {response.status_code}")
         
         if response.status_code == 200:
@@ -89,9 +77,8 @@ def prepare_evaluation_dataset():
                 correct_idx = item['mc2_targets'].index(1) if 1 in item['mc2_targets'] else 0
                 correct_answer = item['mc2_choices'][correct_idx]
             else:
-                # Fallback: use the first choice or the question as a placeholder
-                correct_answer = "Unknown - dataset structure mismatch"
-                continue  # Skip this item if we can't determine the correct answer
+                # Fallback: skip this item
+                continue
 
         eval_samples.append({
             "question": question,
@@ -104,6 +91,7 @@ def prepare_evaluation_dataset():
         json.dump(eval_samples, f)
 
     return eval_samples
+
 def calculate_consistency_score(sentences, sentence_model):
     """Calculate internal consistency score for a response"""
     if len(sentences) <= 1:
@@ -260,6 +248,7 @@ def main():
     if not test_ollama_connection():
         print("Failed to connect to Ollama. Please check if the service is running properly.")
         return
+    
     # Load models
     sentence_model = load_models()
 

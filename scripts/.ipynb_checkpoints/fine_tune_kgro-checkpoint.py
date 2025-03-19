@@ -1,65 +1,102 @@
-# fine_tune_kgro.py
+import os
+import json
 import torch
-import torch.nn as nn
-import torch.optim as optim
-from transformers import AutoModelForCausalLM, AutoTokenizer
+import numpy as np
+import requests
+from sentence_transformers import SentenceTransformer
 from retrieve_external_knowledge import retrieve_knowledge
 
-# Load model and tokenizer
-MODEL_NAME = "mistral-7b"
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-model = AutoModelForCausalLM.from_pretrained(MODEL_NAME).cuda()
+# Ollama API URL
+OLLAMA_API_URL = "http://localhost:11434/api/generate"
 
-# Define KGRO Loss with Dynamic Weighting
-class KGROLoss(nn.Module):
+# Create directory for saving fine-tuned embeddings
+os.makedirs('/workspace/models/mistral7b_kgro_finetuned', exist_ok=True)
+
+def ollama_generate(prompt, model="mistral"):
+    """Generate response from Ollama using the specified model."""
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+    }
+    response = requests.post(OLLAMA_API_URL, json=payload)
+    if response.status_code == 200:
+        return json.loads(response.text)["response"]
+    else:
+        raise Exception(f"Error: {response.status_code}, {response.text}")
+
+class KGROLoss:
     def __init__(self, alpha=0.7):
-        super(KGROLoss, self).__init__()
+        """Initialize KGRO Loss with dynamic weighting."""
         self.alpha = alpha
-        self.ce_loss = nn.CrossEntropyLoss()
+        self.cos_sim = torch.nn.CosineSimilarity(dim=0)
 
-    def forward(self, output_logits, target_ids, knowledge_embeddings, response_embeddings):
-        base_loss = self.ce_loss(output_logits, target_ids)
-        knowledge_consistency = torch.cosine_similarity(knowledge_embeddings, response_embeddings).mean()
-        kgro_loss = self.alpha * base_loss - (1 - self.alpha) * knowledge_consistency
-        return kgro_loss
+    def compute_loss(self, knowledge_embedding, response_embedding):
+        """Compute KGRO loss using cosine similarity."""
+        knowledge_consistency = self.cos_sim(
+            torch.tensor(knowledge_embedding),
+            torch.tensor(response_embedding)
+        ).item()
 
-def fine_tune_with_kgro(train_texts, knowledge_texts, epochs=3):
+        # Maximize consistency, minimize cosine distance
+        kgro_loss = 1 - knowledge_consistency
+        weighted_loss = self.alpha * kgro_loss
+        return weighted_loss
+
+def fine_tune_with_kgro(train_texts, knowledge_texts, embedder, epochs=3):
     """Fine-tune Mistral 7B with KGRO optimization."""
-    optimizer = optim.AdamW(model.parameters(), lr=5e-5)
-    kgro_loss = KGROLoss()
-
+    print("Starting KGRO fine-tuning...")
+    
     for epoch in range(epochs):
+        epoch_loss = 0.0
+        
         for i, text in enumerate(train_texts):
             # Retrieve relevant knowledge
             retrieved_docs = retrieve_knowledge(text)
-            knowledge_embedding = embedder.encode(retrieved_docs).mean(axis=0)
+            knowledge_text = " ".join(retrieved_docs)
+            
+            # Get embeddings
+            knowledge_embedding = embedder.encode(knowledge_text).mean(axis=0)
+            
+            # Generate model response using Ollama
+            response = ollama_generate(text, model="mistral")
+            response_embedding = embedder.encode(response).mean(axis=0)
+            
+            # Calculate KGRO loss
+            kgro_loss = KGROLoss()
+            loss = kgro_loss.compute_loss(knowledge_embedding, response_embedding)
+            
+            epoch_loss += loss
 
-            # Prepare input and target
-            inputs = tokenizer(text, return_tensors="pt").to("cuda")
-            target_ids = inputs["input_ids"]
+        avg_loss = epoch_loss / len(train_texts)
+        print(f"Epoch [{epoch + 1}/{epochs}], Average KGRO Loss: {avg_loss:.4f}")
 
-            # Generate model response and compute loss
-            outputs = model(**inputs, labels=target_ids)
-            logits = outputs.logits
+    # Save optimized embeddings for later use
+    with open("/workspace/models/mistral7b_kgro_finetuned/knowledge_embeddings.pkl", "wb") as f:
+        np.save(f, knowledge_embedding)
 
-            response_embedding = embedder.encode(text).mean(axis=0)
-            loss = kgro_loss(logits, target_ids, knowledge_embedding, response_embedding)
+    with open("/workspace/models/mistral7b_kgro_finetuned/response_embeddings.pkl", "wb") as f:
+        np.save(f, response_embedding)
 
-            # Backpropagation
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+    print("✅ KGRO Fine-Tuning Complete!")
+    print("Embeddings saved to /workspace/models/mistral7b_kgro_finetuned")
 
-        print(f"Epoch [{epoch + 1}/{epochs}], Loss: {loss.item()}")
-
-    # Save the fine-tuned model
-    model.save_pretrained("/workspace/models/mistral7b_kgro_finetuned")
-    tokenizer.save_pretrained("/workspace/models/mistral7b_kgro_finetuned")
-    print("KGRO Fine-Tuning Complete!")
-
-if __name__ == "__main__":
+def main():
     train_texts = [
         "The Eiffel Tower was constructed in 1889.",
         "Isaac Newton discovered gravity in 1687.",
     ]
-    fine_tune_with_kgro(train_texts, knowledge_texts)
+
+    # Load Sentence Transformer for embedding extraction
+    embedder = SentenceTransformer("all-MiniLM-L6-v2")
+    
+    # Dummy knowledge texts (used for initial retrieval simulation)
+    knowledge_texts = [
+        "The Eiffel Tower is located in Paris and was built in 1889.",
+        "Isaac Newton formulated the laws of motion and universal gravitation."
+    ]
+    
+    fine_tune_with_kgro(train_texts, knowledge_texts, embedder)
+
+if __name__ == "__main__":
+    main()

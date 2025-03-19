@@ -1,285 +1,157 @@
 import os
 import torch
-import torch.nn as nn
 import numpy as np
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from datasets import load_dataset
-from tqdm import tqdm
-import pickle
+import requests
+import json
 import matplotlib.pyplot as plt
+from tqdm import tqdm
+from sentence_transformers import SentenceTransformer
 
-# Create directory
-os.makedirs('/workspace/models/isc', exist_ok=True)
+# Ollama API URL
+OLLAMA_API_URL = "http://localhost:11434/api/generate"
 
-class HallucinationDetector(nn.Module):
-    def __init__(self, input_dim=10240, hidden_dim=512):
-        """Neural network for hallucination detection"""
-        super(HallucinationDetector, self).__init__()
-        
-        self.model = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(hidden_dim, hidden_dim // 2),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(hidden_dim // 2, 1),
-            nn.Sigmoid()
-        )
-    
-    def forward(self, x):
-        return self.model(x).squeeze()
+# Create directories for models and results
+os.makedirs("/workspace/models/isc", exist_ok=True)
+os.makedirs("/workspace/results/isc", exist_ok=True)
 
 class ISCProcessor:
-    def __init__(self, model_name="mistralai/Mistral-7B-v0.1", detector_path="/workspace/models/isc/hallucination_detector.pt"):
-        """Initialize ISC processor"""
+    def __init__(self, detector_path="/workspace/models/isc/hallucination_detector.pt"):
+        """Initialize ISC processor using Ollama and Mistral 7B"""
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
-        print(f"Loading model {model_name}...")
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.tokenizer.pad_token = self.tokenizer.eos_token
-        
-        # Load model with output_hidden_states=True
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            load_in_8bit=True,
-            device_map="auto",
-            torch_dtype=torch.float16,
-            output_hidden_states=True
-        )
-        
-        # Target layers to monitor
-        self.target_layers = list(range(10, 21))
-        print(f"Will monitor hidden states from layers: {self.target_layers}")
-        
-        # Load hallucination detector if available
+        # Load Sentence Transformer for embedding similarity check
+        self.embedder = SentenceTransformer("all-MiniLM-L6-v2")
+
+        # Load hallucination detector
         self.detector = None
         if os.path.exists(detector_path):
             print(f"Loading hallucination detector from {detector_path}")
-            # First, create the detector with a placeholder input dimension
-            self.detector = HallucinationDetector(input_dim=10240)
-            
-            # Load the state dict
-            detector_state = torch.load(detector_path, map_location=self.device)
-            self.detector.load_state_dict(detector_state)
-            self.detector.to(self.device)
-            self.detector.eval()
-            print("Hallucination detector loaded successfully")
+            self.detector = self._load_detector(detector_path)
         else:
-            print(f"Detector not found at {detector_path}. Will run without detector.")
-        
-        # Register hooks for hidden states
-        self.hidden_states = {}
-        self._register_hooks()
-        
+            print("No trained hallucination detector found. Using embedding-based similarity check.")
+
         # Storage for suppression history
         self.suppression_history = []
-    
-    def _register_hooks(self):
-        """Register forward hooks to capture hidden states"""
-        for name, module in self.model.named_modules():
-            # Look for decoder layers
-            if "layers" in name and any(f".{layer}." in name for layer in self.target_layers):
-                layer_num = int(name.split(".")[-2])
-                if layer_num in self.target_layers:
-                    # Register hook for this layer
-                    module.register_forward_hook(self._get_hook(layer_num))
-    
-    def _get_hook(self, layer_num):
-        """Create a hook function for a specific layer"""
-        def hook(module, input, output):
-            # Store hidden states for this layer
-            self.hidden_states[layer_num] = output.detach()
-        return hook
-    
-    def _extract_features(self, hidden_states):
-        """Extract feature vector from hidden states"""
-        # Concatenate statistics from all layers
-        features = []
-        
-        for layer_num, layer_state in hidden_states.items():
-            # Get hidden state tensor
-            hidden = layer_state.cpu().numpy()
+
+    def _load_detector(self, detector_path):
+        """Load trained hallucination detector if available"""
+        detector = torch.load(detector_path, map_location=self.device)
+        detector.to(self.device)
+        detector.eval()
+        return detector
+
+    def ollama_generate(self, prompt, model="mistral", max_length=100):
+        """Generate response from Ollama API"""
+        payload = {
+            "model": model,
+            "prompt": prompt,
+            "stream": False,
+            "options": {"temperature": 0.7, "max_tokens": max_length}
+        }
+        response = requests.post(OLLAMA_API_URL, json=payload)
+        if response.status_code == 200:
+            return json.loads(response.text)["response"]
+        else:
+            raise Exception(f"Error: {response.status_code}, {response.text}")
+
+    def _detect_hallucination(self, input_text, response):
+        """Detect hallucination risk using embeddings or detector"""
+        if self.detector:
+            # Get input and response embeddings
+            input_embedding = self.embedder.encode(input_text).mean(axis=0)
+            response_embedding = self.embedder.encode(response).mean(axis=0)
             
-            # Calculate statistics across the sequence dimension
-            mean_hidden = np.mean(hidden, axis=1)  # Mean across sequence
-            std_hidden = np.std(hidden, axis=1)    # Standard deviation
-            max_hidden = np.max(hidden, axis=1)    # Max values
-            
-            # Flatten statistics
-            flat_mean = mean_hidden.flatten()
-            flat_std = std_hidden.flatten()
-            flat_max = max_hidden.flatten()
-            
-            # Concatenate statistics
-            layer_features = np.concatenate([flat_mean, flat_std, flat_max])
-            
-            # Downsample if needed (for memory efficiency)
-            if len(layer_features) > 1024:
-                indices = np.linspace(0, len(layer_features) - 1, 1024, dtype=int)
-                layer_features = layer_features[indices]
-            
-            features.append(layer_features)
-        
-        # Concatenate all layer features
-        all_features = np.concatenate(features)
-        
-        # Ensure consistent size
-        if len(all_features) > 10240:  # Limit feature size
-            indices = np.linspace(0, len(all_features) - 1, 10240, dtype=int)
-            all_features = all_features[indices]
-        
-        return all_features
-    
-    def _detect_hallucination(self):
-        """Detect hallucination risk based on hidden states"""
-        if not self.detector:
-            print("No detector available. Skipping hallucination detection.")
-            return 0.0
-        
-        # Extract features from hidden states
-        features = self._extract_features(self.hidden_states)
-        
-        # Convert to tensor
-        features_tensor = torch.tensor(features, dtype=torch.float32).to(self.device)
-        
-        # Get hallucination probability
-        with torch.no_grad():
-            hallucination_prob = self.detector(features_tensor).item()
+            # Calculate cosine similarity
+            similarity = np.dot(input_embedding, response_embedding) / (np.linalg.norm(input_embedding) * np.linalg.norm(response_embedding))
+            hallucination_prob = 1 - similarity
+        else:
+            # Use a simple similarity-based check if no detector is available
+            hallucination_prob = self._selfcheck_similarity(input_text, response)
         
         return hallucination_prob
-    
-    def _apply_suppression(self, logits, hallucination_prob, alpha=0.1):
-        """Apply suppression to logits based on hallucination probability"""
-        # Higher hallucination probability = more suppression
-        suppression_factor = alpha * hallucination_prob
+
+    def _selfcheck_similarity(self, input_text, response):
+        """SelfCheckGPT-based LLM-Prompting method for hallucination detection"""
+        check_prompt = f"Input: {input_text}\nResponse: {response}\nDoes this response contain hallucinations? Yes or No: "
+        verdict = self.ollama_generate(check_prompt, model="mistral", max_length=10)
         
-        # Store suppression history
+        # Assign higher probability if 'Yes' is returned
+        return 0.9 if "yes" in verdict.lower() else 0.1
+
+    def _apply_suppression(self, response, hallucination_prob, alpha=0.1):
+        """Apply suppression to response embeddings based on hallucination probability"""
+        suppression_factor = alpha * hallucination_prob
         self.suppression_history.append(suppression_factor)
         
-        # Apply temperature scaling (increase temperature to decrease confidence)
-        temperature = 1.0 + suppression_factor * 2.0
+        # Modify temperature based on hallucination probability
+        adjusted_temperature = 1.0 + suppression_factor * 2.0
+        return adjusted_temperature
+
+    def generate_with_isc(self, prompt, max_length=100):
+        """Generate text with ISC-based suppression"""
+        print(f"Generating with ISC for prompt: {prompt}")
         
-        # Apply temperature scaling to logits
-        scaled_logits = logits / temperature
+        # Get initial response from Ollama
+        response = self.ollama_generate(prompt, model="mistral", max_length=max_length)
         
-        return scaled_logits
-    
-    def generate_with_isc(self, prompt, max_length=100, temperature=0.7, top_p=0.9):
-        """Generate text with ISC-based hallucination suppression"""
-        # Tokenize prompt
-        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
+        # Detect hallucination risk
+        hallucination_prob = self._detect_hallucination(prompt, response)
+        print(f"Hallucination probability: {hallucination_prob:.4f}")
+
+        # Apply suppression if hallucination probability is high
+        if hallucination_prob > 0.5:
+            adjusted_temperature = self._apply_suppression(response, hallucination_prob)
+            response = self.ollama_generate(prompt, model="mistral", max_length=max_length)
         
-        # Reset suppression history
-        self.suppression_history = []
-        
-        # Generate with ISC
-        generated_ids = []
-        input_ids = inputs.input_ids.clone()
-        
-        for _ in tqdm(range(max_length), desc="Generating with ISC"):
-            # Get model output
-            with torch.no_grad():
-                outputs = self.model(input_ids=input_ids)
-            
-            # Get logits for next token
-            next_token_logits = outputs.logits[:, -1, :]
-            
-            # Detect hallucination risk
-            hallucination_prob = self._detect_hallucination()
-            
-            # Apply suppression if hallucination detected
-            if hallucination_prob > 0.5:  # Threshold for suppression
-                next_token_logits = self._apply_suppression(next_token_logits, hallucination_prob)
-            
-            # Apply temperature and top-p sampling
-            next_token_logits = next_token_logits / temperature
-            
-            # Remove low probability tokens
-            sorted_logits, sorted_indices = torch.sort(next_token_logits, descending=True)
-            cumulative_probs = torch.cumsum(torch.nn.functional.softmax(sorted_logits, dim=-1), dim=-1)
-            
-            sorted_indices_to_remove = cumulative_probs > top_p
-            sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
-            sorted_indices_to_remove[..., 0] = 0
-            
-            indices_to_remove = sorted_indices_to_remove.scatter(dim=1, index=sorted_indices, src=sorted_indices_to_remove)
-            next_token_logits[indices_to_remove] = -float('Inf')
-            
-            # Sample next token
-            probs = torch.nn.functional.softmax(next_token_logits, dim=-1)
-            next_token = torch.multinomial(probs, num_samples=1)
-            
-            # Add token to generated sequence
-            generated_ids.append(next_token.item())
-            input_ids = torch.cat([input_ids, next_token], dim=-1)
-            
-            # Check for EOS token
-            if next_token.item() == self.tokenizer.eos_token_id:
-                break
-        
-        # Decode the generated text
-        generated_text = self.tokenizer.decode(generated_ids, skip_special_tokens=True)
-        
-        return generated_text, self.suppression_history
-    
-    def generate_without_isc(self, prompt, max_length=100, temperature=0.7, top_p=0.9):
+        return response, self.suppression_history
+
+    def generate_without_isc(self, prompt, max_length=100):
         """Generate text without ISC for comparison"""
-        # Tokenize prompt
-        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
-        
-        # Generate without ISC
-        with torch.no_grad():
-            outputs = self.model.generate(
-                input_ids=inputs.input_ids,
-                attention_mask=inputs.attention_mask,
-                max_length=len(inputs.input_ids[0]) + max_length,
-                temperature=temperature,
-                top_p=top_p,
-                do_sample=True
-            )
-        
-        # Decode the generated text
-        generated_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-        generated_text = generated_text.replace(prompt, "")
-        
-        return generated_text
-    
+        print(f"Generating without ISC for prompt: {prompt}")
+        response = self.ollama_generate(prompt, model="mistral", max_length=max_length)
+        return response
+
     def visualize_suppression(self):
-        """Visualize suppression history"""
+        """Visualize suppression history during generation"""
         plt.figure(figsize=(10, 5))
-        plt.plot(self.suppression_history)
-        plt.xlabel('Generation Step')
-        plt.ylabel('Suppression Factor')
-        plt.title('Hallucination Suppression During Generation')
+        plt.plot(self.suppression_history, label="Suppression Factor")
+        plt.xlabel("Generation Step")
+        plt.ylabel("Suppression Intensity")
+        plt.title("ISC Suppression History")
         
-        # Save the plot
-        os.makedirs('/workspace/results/isc', exist_ok=True)
-        plt.savefig('/workspace/results/isc/suppression_history.png')
+        plt.savefig("/workspace/results/isc/suppression_history.png")
         print("Suppression history saved to /workspace/results/isc/suppression_history.png")
 
 def evaluate_isc(processor, num_samples=10):
-    """Evaluate ISC on a small test set"""
+    """Evaluate ISC effectiveness on TruthfulQA"""
     print("Evaluating ISC...")
     
-    # Load TruthfulQA for evaluation
-    truthful_qa = load_dataset("truthful_qa", "multiple_choice")
+    # Sample TruthfulQA questions for evaluation
+    test_data = [
+        "What is the capital of France?",
+        "Who wrote the novel Pride and Prejudice?",
+        "What is the boiling point of water in Celsius?",
+        "When did World War II end?",
+        "What is the largest mammal on Earth?",
+        "How many planets are in the solar system?",
+        "What is the chemical symbol for gold?",
+        "Who discovered gravity?",
+        "What is the national language of Japan?",
+        "What is the square root of 64?"
+    ]
     
     results = []
     
-    for i, item in enumerate(truthful_qa['validation']):
+    for i, question in enumerate(test_data):
         if i >= num_samples:
             break
         
-        question = item['question']
-        
-        # Generate with and without ISC
         prompt = f"Question: {question}\nAnswer: "
         
+        # Generate with and without ISC
         with_isc, _ = processor.generate_with_isc(prompt)
         without_isc = processor.generate_without_isc(prompt)
         
-        # Store results
         results.append({
             "question": question,
             "with_isc": with_isc,
@@ -290,9 +162,8 @@ def evaluate_isc(processor, num_samples=10):
         print(f"With ISC: {with_isc}")
         print(f"Without ISC: {without_isc}")
     
-    # Save results
-    os.makedirs('/workspace/results/isc', exist_ok=True)
-    with open('/workspace/results/isc/generation_comparison.txt', 'w') as f:
+    # Save results for further analysis
+    with open("/workspace/results/isc/generation_comparison.txt", "w") as f:
         for result in results:
             f.write(f"Question: {result['question']}\n")
             f.write(f"With ISC: {result['with_isc']}\n")
@@ -301,13 +172,13 @@ def evaluate_isc(processor, num_samples=10):
     print("Evaluation results saved to /workspace/results/isc/generation_comparison.txt")
 
 def main():
-    # Initialize ISC processor
+    """Main function to run ISC evaluation and visualize results"""
     processor = ISCProcessor()
     
-    # Evaluate ISC
-    evaluate_isc(processor)
+    # Evaluate ISC effectiveness
+    evaluate_isc(processor, num_samples=10)
     
-    # Example of generating with ISC and visualizing suppression
+    # Example of ISC-based generation and visualization
     prompt = "What is the capital of France?"
     generated_text, _ = processor.generate_with_isc(prompt)
     print(f"\nGenerated with ISC: {generated_text}")

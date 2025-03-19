@@ -1,33 +1,56 @@
-# optimize_response_kgro.py
+import os
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+import requests
+import json
 from retrieve_external_knowledge import retrieve_knowledge
 from sentence_transformers import SentenceTransformer
 
-# Load fine-tuned model and tokenizer
-MODEL_PATH = "/workspace/models/mistral7b_kgro_finetuned"
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-model = AutoModelForCausalLM.from_pretrained(MODEL_PATH).cuda()
+# Ollama API URL
+OLLAMA_API_URL = "http://localhost:11434/api/generate"
 
 # Load Sentence-BERT for embeddings
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 embedder = SentenceTransformer(MODEL_NAME)
 
-def optimize_response(query, max_length=100, top_k=3):
-    """Optimize response by integrating retrieved knowledge."""
-    retrieved_docs = retrieve_knowledge(query, top_k)
-    knowledge_context = " ".join(retrieved_docs)
+def ollama_generate(prompt, model="mistral", max_length=100, temperature=0.7):
+    """Generate response using Ollama API with knowledge-enhanced prompt."""
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "options": {"temperature": temperature, "max_tokens": max_length}
+    }
+    response = requests.post(OLLAMA_API_URL, json=payload)
+    if response.status_code == 200:
+        return json.loads(response.text)["response"]
+    else:
+        raise Exception(f"Error: {response.status_code}, {response.text}")
 
-    # Add knowledge to the query
-    prompt = f"{query} [KNOWLEDGE]: {knowledge_context}"
-
-    inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
-    output_ids = model.generate(**inputs, max_length=max_length, do_sample=True, temperature=0.7)
-
-    response = tokenizer.decode(output_ids[0], skip_special_tokens=True)
-    return response
+def optimize_response(query, max_length=100, top_k=3, model="mistral"):
+    """Optimize response by integrating retrieved knowledge using KGRO."""
+    try:
+        # Retrieve relevant external knowledge
+        retrieved_docs = retrieve_knowledge(query, top_k)
+        
+        if not retrieved_docs:
+            print("No relevant knowledge retrieved. Proceeding without additional context.")
+            knowledge_context = ""
+        else:
+            knowledge_context = " ".join(retrieved_docs)
+            print(f"Retrieved {len(retrieved_docs)} knowledge sources for context.")
+        
+        # Construct knowledge-enhanced prompt
+        prompt = f"{query}\n[KNOWLEDGE]: {knowledge_context}"
+        
+        # Generate response using Ollama
+        response = ollama_generate(prompt, model=model, max_length=max_length, temperature=0.7)
+        return response
+    
+    except Exception as e:
+        print(f"Error during response optimization: {e}")
+        return "I'm sorry, I couldn't generate a response at the moment."
 
 if __name__ == "__main__":
     sample_query = "Who invented the telephone?"
-    optimized_response = optimize_response(sample_query)
+    optimized_response = optimize_response(sample_query, max_length=100, top_k=3, model="mistral")
     print(f"Optimized Response: {optimized_response}")

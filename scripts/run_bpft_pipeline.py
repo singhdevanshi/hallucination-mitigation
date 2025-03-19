@@ -67,8 +67,8 @@ def prepare_directories():
         logger.info(f"Created directory: {directory}")
 
 def run_pipeline(skip_training=False):
-    """Run the entire BPFT pipeline"""
-    logger.info("Starting BPFT pipeline")
+    """Run the entire BPFT pipeline with Ollama"""
+    logger.info("Starting BPFT pipeline with Ollama")
     
     # Prepare directories
     prepare_directories()
@@ -81,23 +81,23 @@ def run_pipeline(skip_training=False):
     
     # Step 2: Train model (can be skipped)
     if not skip_training:
-        if not run_command("python /workspace/scripts/implement_bpft.py",
-                         "Training BPFT model"):
+        if not run_command("ollama create mistral-bpft -f /workspace/models/mistral-7b-bpft/Modelfile",
+                         "Training BPFT model with Ollama"):
             logger.error("BPFT training failed. Evaluation may use base model only.")
     else:
         logger.info("Skipping training as requested.")
     
-    # Step 3: Evaluate model
-    if not run_command("python /workspace/scripts/evaluate_bpft.py",
-                     "Evaluating BPFT model"):
+    # Step 3: Evaluate model with Ollama
+    if not run_command("python /workspace/scripts/evaluate_bpft_ollama.py",
+                     "Evaluating BPFT model using Ollama"):
         logger.error("BPFT evaluation failed.")
         return False
     
-    logger.info("BPFT pipeline completed successfully")
+    logger.info("BPFT pipeline completed successfully with Ollama")
     return True
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run BPFT pipeline")
+    parser = argparse.ArgumentParser(description="Run BPFT pipeline with Ollama")
     parser.add_argument("--skip-training", action="store_true", help="Skip model training step")
     args = parser.parse_args()
     

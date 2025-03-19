@@ -1,0 +1,15 @@
+torch>=2.0.0
+transformers>=4.30.0
+datasets
+accelerate
+evaluate
+scikit-learn
+pandas
+numpy
+matplotlib
+tqdm
+selfcheckgpt
+bertscore
+
+
+

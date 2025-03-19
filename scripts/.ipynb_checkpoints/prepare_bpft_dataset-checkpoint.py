@@ -68,7 +68,7 @@ def generate_contradictory_samples(dataset, num_samples=1000):
             "input": prompt,
             "response": incorrect_answer,
             "factuality_score": float(0.0),
-            "contradiction_score": flot(contradiction_score)
+            "contradiction_score": float(contradiction_score)
         })
 
     # Save samples as JSON

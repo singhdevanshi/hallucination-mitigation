@@ -1,0 +1,12 @@
+[
+    {
+        "input": "Question: What is the capital of France?\nAnswer: ",
+        "response": "Paris.",
+        "factuality_score": 1.0,
+        "contradiction_score": 0.0
+    },
+    {
+        "input": "Question: What is the capital of France?\nAnswer: ",
+        "response": "London.",
+        "factuality_score": 0.0,
+        "contradiction_score": 

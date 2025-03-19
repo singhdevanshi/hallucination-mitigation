@@ -9,4 +9,18 @@
         "input": "Question: What is the capital of France?\nAnswer: ",
         "response": "London.",
         "factuality_score": 0.0,
-        "contradiction_score": 
+        "contradiction_score": 0.3744308352470398
+    },
+    {
+        "input": "Question: Who wrote Hamlet?\nAnswer: ",
+        "response": "William Shakespeare.",
+        "factuality_score": 1.0,
+        "contradiction_score": 0.0
+    },
+    {
+        "input": "Question: Who wrote Hamlet?\nAnswer: ",
+        "response": "Charles Dickens.",
+        "factuality_score": 0.0,
+        "contradiction_score": 0.4882924556732178
+    }
+]

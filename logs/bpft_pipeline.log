@@ -349,3 +349,186 @@
 2025-03-19 20:30:35,910 - BPFT_Pipeline - ERROR - NameError: name 'flot' is not defined. Did you mean: 'float'?
 2025-03-19 20:30:35,910 - BPFT_Pipeline - ERROR - Failed: Preparing BPFT dataset
 2025-03-19 20:30:35,910 - BPFT_Pipeline - ERROR - Dataset preparation failed. Stopping pipeline.
+2025-03-19 20:32:42,422 - BPFT_Pipeline - INFO - Starting BPFT pipeline with Ollama
+2025-03-19 20:32:42,422 - BPFT_Pipeline - INFO - Created directory: /workspace/data/bpft
+2025-03-19 20:32:42,422 - BPFT_Pipeline - INFO - Created directory: /workspace/models/mistral-7b-bpft
+2025-03-19 20:32:42,422 - BPFT_Pipeline - INFO - Created directory: /workspace/results
+2025-03-19 20:32:42,422 - BPFT_Pipeline - INFO - Created directory: /workspace/logs
+2025-03-19 20:32:42,422 - BPFT_Pipeline - INFO - Starting: Preparing BPFT dataset
+2025-03-19 20:32:42,422 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/prepare_bpft_dataset.py
+2025-03-19 20:32:49,502 - BPFT_Pipeline - INFO - Generating training samples...
+2025-03-19 20:32:50,207 - BPFT_Pipeline - INFO - Completed: Preparing BPFT dataset in 7.78 seconds
+2025-03-19 20:32:50,207 - BPFT_Pipeline - INFO - Skipping training as requested.
+2025-03-19 20:32:50,207 - BPFT_Pipeline - INFO - Starting: Evaluating BPFT model using Ollama
+2025-03-19 20:32:50,207 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/evaluate_bpft_ollama.py
+2025-03-19 20:32:50,214 - BPFT_Pipeline - ERROR - python: can't open file '/workspace/scripts/evaluate_bpft_ollama.py': [Errno 2] No such file or directory
+2025-03-19 20:32:50,214 - BPFT_Pipeline - ERROR - Failed: Evaluating BPFT model using Ollama
+2025-03-19 20:32:50,214 - BPFT_Pipeline - ERROR - BPFT evaluation failed.
+2025-03-19 20:35:40,927 - BPFT_Pipeline - INFO - Starting BPFT pipeline with Ollama
+2025-03-19 20:35:40,927 - BPFT_Pipeline - INFO - Created directory: /workspace/data/bpft
+2025-03-19 20:35:40,927 - BPFT_Pipeline - INFO - Created directory: /workspace/models/mistral-7b-bpft
+2025-03-19 20:35:40,927 - BPFT_Pipeline - INFO - Created directory: /workspace/results
+2025-03-19 20:35:40,927 - BPFT_Pipeline - INFO - Created directory: /workspace/logs
+2025-03-19 20:35:40,927 - BPFT_Pipeline - INFO - Starting: Preparing BPFT dataset
+2025-03-19 20:35:40,927 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/prepare_bpft_dataset.py
+2025-03-19 20:35:48,317 - BPFT_Pipeline - INFO - Generating training samples...
+2025-03-19 20:35:49,023 - BPFT_Pipeline - INFO - Completed: Preparing BPFT dataset in 8.10 seconds
+2025-03-19 20:35:49,023 - BPFT_Pipeline - INFO - Skipping training as requested.
+2025-03-19 20:35:49,023 - BPFT_Pipeline - INFO - Starting: Evaluating BPFT model using Ollama
+2025-03-19 20:35:49,023 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/evaluate_bpft_ollama.py
+2025-03-19 20:35:49,756 - BPFT_Pipeline - ERROR - ERROR:root:Failed to load model llama-3b: module 'ollama' has no attribute 'Chat'
+2025-03-19 20:35:49,756 - BPFT_Pipeline - ERROR - Failed: Evaluating BPFT model using Ollama
+2025-03-19 20:35:49,756 - BPFT_Pipeline - ERROR - BPFT evaluation failed.
+2025-03-19 20:40:11,311 - BPFT_Pipeline - INFO - Starting BPFT pipeline with Ollama
+2025-03-19 20:40:11,311 - BPFT_Pipeline - INFO - Created directory: /workspace/data/bpft
+2025-03-19 20:40:11,311 - BPFT_Pipeline - INFO - Created directory: /workspace/models/mistral-7b-bpft
+2025-03-19 20:40:11,311 - BPFT_Pipeline - INFO - Created directory: /workspace/results
+2025-03-19 20:40:11,311 - BPFT_Pipeline - INFO - Created directory: /workspace/logs
+2025-03-19 20:40:11,311 - BPFT_Pipeline - INFO - Starting: Preparing BPFT dataset
+2025-03-19 20:40:11,311 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/prepare_bpft_dataset.py
+2025-03-19 20:40:18,037 - BPFT_Pipeline - INFO - Generating training samples...
+2025-03-19 20:40:18,749 - BPFT_Pipeline - INFO - Completed: Preparing BPFT dataset in 7.44 seconds
+2025-03-19 20:40:18,749 - BPFT_Pipeline - INFO - Skipping training as requested.
+2025-03-19 20:40:18,749 - BPFT_Pipeline - INFO - Starting: Evaluating BPFT model using Ollama
+2025-03-19 20:40:18,749 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/evaluate_bpft_ollama.py
+2025-03-19 20:40:18,968 - BPFT_Pipeline - ERROR - ERROR:root:Error during evaluation: module 'ollama' has no attribute 'query'
+2025-03-19 20:40:18,968 - BPFT_Pipeline - ERROR - Traceback (most recent call last):
+2025-03-19 20:40:18,968 - BPFT_Pipeline - ERROR - File "/workspace/scripts/evaluate_bpft_ollama.py", line 41, in <module>
+2025-03-19 20:40:18,968 - BPFT_Pipeline - ERROR - accuracy, f1 = compute_metrics(predictions, true_labels)
+2025-03-19 20:40:18,969 - BPFT_Pipeline - ERROR - File "/workspace/scripts/evaluate_bpft_ollama.py", line 31, in compute_metrics
+2025-03-19 20:40:18,969 - BPFT_Pipeline - ERROR - accuracy = accuracy_score(true_labels, predictions)
+2025-03-19 20:40:18,969 - BPFT_Pipeline - ERROR - NameError: name 'accuracy_score' is not defined
+2025-03-19 20:40:18,969 - BPFT_Pipeline - ERROR - Failed: Evaluating BPFT model using Ollama
+2025-03-19 20:40:18,969 - BPFT_Pipeline - ERROR - BPFT evaluation failed.
+2025-03-19 20:42:53,843 - BPFT_Pipeline - INFO - Starting BPFT pipeline with Ollama
+2025-03-19 20:42:53,843 - BPFT_Pipeline - INFO - Created directory: /workspace/data/bpft
+2025-03-19 20:42:53,843 - BPFT_Pipeline - INFO - Created directory: /workspace/models/mistral-7b-bpft
+2025-03-19 20:42:53,843 - BPFT_Pipeline - INFO - Created directory: /workspace/results
+2025-03-19 20:42:53,843 - BPFT_Pipeline - INFO - Created directory: /workspace/logs
+2025-03-19 20:42:53,843 - BPFT_Pipeline - INFO - Starting: Preparing BPFT dataset
+2025-03-19 20:42:53,843 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/prepare_bpft_dataset.py
+2025-03-19 20:43:02,020 - BPFT_Pipeline - INFO - Generating training samples...
+2025-03-19 20:43:02,725 - BPFT_Pipeline - INFO - Completed: Preparing BPFT dataset in 8.88 seconds
+2025-03-19 20:43:02,725 - BPFT_Pipeline - INFO - Skipping training as requested.
+2025-03-19 20:43:02,725 - BPFT_Pipeline - INFO - Starting: Evaluating BPFT model using Ollama
+2025-03-19 20:43:02,725 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/evaluate_bpft_ollama.py
+2025-03-19 20:43:05,251 - BPFT_Pipeline - ERROR - INFO:httpx:HTTP Request: POST http://127.0.0.1:11434/api/pull "HTTP/1.1 500 Internal Server Error"
+2025-03-19 20:43:05,251 - BPFT_Pipeline - ERROR - ERROR:root:Failed to load model llama-3b: pull model manifest: file does not exist (status code: 500)
+2025-03-19 20:43:05,251 - BPFT_Pipeline - ERROR - Failed: Evaluating BPFT model using Ollama
+2025-03-19 20:43:05,251 - BPFT_Pipeline - ERROR - BPFT evaluation failed.
+2025-03-19 20:45:51,347 - BPFT_Pipeline - INFO - Starting BPFT pipeline with Ollama
+2025-03-19 20:45:51,347 - BPFT_Pipeline - INFO - Created directory: /workspace/data/bpft
+2025-03-19 20:45:51,347 - BPFT_Pipeline - INFO - Created directory: /workspace/models/mistral-7b-bpft
+2025-03-19 20:45:51,347 - BPFT_Pipeline - INFO - Created directory: /workspace/results
+2025-03-19 20:45:51,347 - BPFT_Pipeline - INFO - Created directory: /workspace/logs
+2025-03-19 20:45:51,347 - BPFT_Pipeline - INFO - Starting: Preparing BPFT dataset
+2025-03-19 20:45:51,347 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/prepare_bpft_dataset.py
+2025-03-19 20:46:02,005 - BPFT_Pipeline - INFO - Generating training samples...
+2025-03-19 20:46:02,717 - BPFT_Pipeline - INFO - Completed: Preparing BPFT dataset in 11.37 seconds
+2025-03-19 20:46:02,717 - BPFT_Pipeline - INFO - Skipping training as requested.
+2025-03-19 20:46:02,717 - BPFT_Pipeline - INFO - Starting: Evaluating BPFT model using Ollama
+2025-03-19 20:46:02,717 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/evaluate_bpft_ollama.py
+2025-03-19 20:46:03,437 - BPFT_Pipeline - ERROR - ERROR:root:Failed to load model llama-3b: Failed to connect to Ollama. Please check that Ollama is downloaded, running and accessible. https://ollama.com/download
+2025-03-19 20:46:03,437 - BPFT_Pipeline - ERROR - Failed: Evaluating BPFT model using Ollama
+2025-03-19 20:46:03,437 - BPFT_Pipeline - ERROR - BPFT evaluation failed.
+2025-03-19 20:46:11,783 - BPFT_Pipeline - INFO - Starting BPFT pipeline with Ollama
+2025-03-19 20:46:11,783 - BPFT_Pipeline - INFO - Created directory: /workspace/data/bpft
+2025-03-19 20:46:11,783 - BPFT_Pipeline - INFO - Created directory: /workspace/models/mistral-7b-bpft
+2025-03-19 20:46:11,783 - BPFT_Pipeline - INFO - Created directory: /workspace/results
+2025-03-19 20:46:11,783 - BPFT_Pipeline - INFO - Created directory: /workspace/logs
+2025-03-19 20:46:11,783 - BPFT_Pipeline - INFO - Starting: Preparing BPFT dataset
+2025-03-19 20:46:11,783 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/prepare_bpft_dataset.py
+2025-03-19 20:46:24,204 - BPFT_Pipeline - INFO - Generating training samples...
+2025-03-19 20:46:24,919 - BPFT_Pipeline - INFO - Completed: Preparing BPFT dataset in 13.14 seconds
+2025-03-19 20:46:24,919 - BPFT_Pipeline - INFO - Starting: Training BPFT model with Ollama
+2025-03-19 20:46:24,919 - BPFT_Pipeline - INFO - Command: ollama create mistral-bpft -f /workspace/models/mistral-7b-bpft/Modelfile
+2025-03-19 20:46:24,928 - BPFT_Pipeline - ERROR - Error: could not connect to ollama app, is it running?
+2025-03-19 20:46:24,928 - BPFT_Pipeline - ERROR - Failed: Training BPFT model with Ollama
+2025-03-19 20:46:24,928 - BPFT_Pipeline - ERROR - BPFT training failed. Evaluation may use base model only.
+2025-03-19 20:46:24,928 - BPFT_Pipeline - INFO - Starting: Evaluating BPFT model using Ollama
+2025-03-19 20:46:24,928 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/evaluate_bpft_ollama.py
+2025-03-19 20:46:25,653 - BPFT_Pipeline - ERROR - ERROR:root:Failed to load model llama-3b: Failed to connect to Ollama. Please check that Ollama is downloaded, running and accessible. https://ollama.com/download
+2025-03-19 20:46:25,653 - BPFT_Pipeline - ERROR - Failed: Evaluating BPFT model using Ollama
+2025-03-19 20:46:25,653 - BPFT_Pipeline - ERROR - BPFT evaluation failed.
+2025-03-19 20:49:01,332 - BPFT_Pipeline - INFO - Starting BPFT pipeline with Ollama
+2025-03-19 20:49:01,332 - BPFT_Pipeline - INFO - Created directory: /workspace/data/bpft
+2025-03-19 20:49:01,332 - BPFT_Pipeline - INFO - Created directory: /workspace/models/mistral-7b-bpft
+2025-03-19 20:49:01,332 - BPFT_Pipeline - INFO - Created directory: /workspace/results
+2025-03-19 20:49:01,332 - BPFT_Pipeline - INFO - Created directory: /workspace/logs
+2025-03-19 20:49:01,332 - BPFT_Pipeline - INFO - Starting: Preparing BPFT dataset
+2025-03-19 20:49:01,332 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/prepare_bpft_dataset.py
+2025-03-19 20:49:11,124 - BPFT_Pipeline - INFO - Generating training samples...
+2025-03-19 20:49:11,833 - BPFT_Pipeline - INFO - Completed: Preparing BPFT dataset in 10.50 seconds
+2025-03-19 20:49:11,833 - BPFT_Pipeline - INFO - Starting: Training BPFT model with Ollama
+2025-03-19 20:49:11,833 - BPFT_Pipeline - INFO - Command: ollama create mistral-bpft -f /workspace/models/mistral-7b-bpft/Modelfile
+2025-03-19 20:49:11,842 - BPFT_Pipeline - ERROR - [?2026h[?25l[1Ggathering model components [K[?25h[?2026l
+2025-03-19 20:49:11,842 - BPFT_Pipeline - ERROR - Error: no Modelfile or safetensors files found
+2025-03-19 20:49:11,842 - BPFT_Pipeline - ERROR - Failed: Training BPFT model with Ollama
+2025-03-19 20:49:11,842 - BPFT_Pipeline - ERROR - BPFT training failed. Evaluation may use base model only.
+2025-03-19 20:49:11,842 - BPFT_Pipeline - INFO - Starting: Evaluating BPFT model using Ollama
+2025-03-19 20:49:11,842 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/evaluate_bpft_ollama.py
+2025-03-19 20:49:13,777 - BPFT_Pipeline - ERROR - INFO:httpx:HTTP Request: POST http://127.0.0.1:11434/api/pull "HTTP/1.1 500 Internal Server Error"
+2025-03-19 20:49:13,777 - BPFT_Pipeline - ERROR - ERROR:root:Failed to load model llama-3b: pull model manifest: file does not exist (status code: 500)
+2025-03-19 20:49:13,777 - BPFT_Pipeline - ERROR - Failed: Evaluating BPFT model using Ollama
+2025-03-19 20:49:13,777 - BPFT_Pipeline - ERROR - BPFT evaluation failed.
+2025-03-19 20:53:07,795 - BPFT_Pipeline - INFO - Starting BPFT pipeline with Ollama
+2025-03-19 20:53:07,795 - BPFT_Pipeline - INFO - Created directory: /workspace/data/bpft
+2025-03-19 20:53:07,795 - BPFT_Pipeline - INFO - Created directory: /workspace/models/mistral-7b-bpft
+2025-03-19 20:53:07,795 - BPFT_Pipeline - INFO - Created directory: /workspace/results
+2025-03-19 20:53:07,795 - BPFT_Pipeline - INFO - Created directory: /workspace/logs
+2025-03-19 20:53:07,795 - BPFT_Pipeline - INFO - Starting: Preparing BPFT dataset
+2025-03-19 20:53:07,795 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/prepare_bpft_dataset.py
+2025-03-19 20:53:14,476 - BPFT_Pipeline - INFO - Generating training samples...
+2025-03-19 20:53:15,185 - BPFT_Pipeline - INFO - Completed: Preparing BPFT dataset in 7.39 seconds
+2025-03-19 20:53:15,185 - BPFT_Pipeline - INFO - Starting: Training BPFT model with Ollama
+2025-03-19 20:53:15,185 - BPFT_Pipeline - INFO - Command: ollama create mistral-bpft -f /workspace/models/mistral-7b-bpft/Modelfile
+2025-03-19 20:53:15,195 - BPFT_Pipeline - ERROR - [?2026h[?25l[1Ggathering model components [K[?25h[?2026l
+2025-03-19 20:53:15,195 - BPFT_Pipeline - ERROR - Error: no Modelfile or safetensors files found
+2025-03-19 20:53:15,195 - BPFT_Pipeline - ERROR - Failed: Training BPFT model with Ollama
+2025-03-19 20:53:15,195 - BPFT_Pipeline - ERROR - BPFT training failed. Evaluation may use base model only.
+2025-03-19 20:53:15,195 - BPFT_Pipeline - INFO - Starting: Evaluating BPFT model using Ollama
+2025-03-19 20:53:15,195 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/evaluate_bpft_ollama.py
+2025-03-19 20:53:17,689 - BPFT_Pipeline - ERROR - INFO:httpx:HTTP Request: POST http://127.0.0.1:11434/api/pull "HTTP/1.1 500 Internal Server Error"
+2025-03-19 20:53:17,689 - BPFT_Pipeline - ERROR - ERROR:root:Failed to load model mistral-7b: pull model manifest: file does not exist (status code: 500)
+2025-03-19 20:53:17,689 - BPFT_Pipeline - ERROR - Failed: Evaluating BPFT model using Ollama
+2025-03-19 20:53:17,689 - BPFT_Pipeline - ERROR - BPFT evaluation failed.
+2025-03-19 20:55:54,473 - BPFT_Pipeline - INFO - Starting BPFT pipeline with Ollama
+2025-03-19 20:55:54,474 - BPFT_Pipeline - INFO - Created directory: /workspace/data/bpft
+2025-03-19 20:55:54,474 - BPFT_Pipeline - INFO - Created directory: /workspace/models/mistral-7b-bpft
+2025-03-19 20:55:54,474 - BPFT_Pipeline - INFO - Created directory: /workspace/results
+2025-03-19 20:55:54,474 - BPFT_Pipeline - INFO - Created directory: /workspace/logs
+2025-03-19 20:55:54,474 - BPFT_Pipeline - INFO - Starting: Preparing BPFT dataset
+2025-03-19 20:55:54,474 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/prepare_bpft_dataset.py
+2025-03-19 20:56:01,695 - BPFT_Pipeline - INFO - Generating training samples...
+2025-03-19 20:56:02,408 - BPFT_Pipeline - INFO - Completed: Preparing BPFT dataset in 7.93 seconds
+2025-03-19 20:56:02,408 - BPFT_Pipeline - INFO - Starting: Training BPFT model with Ollama
+2025-03-19 20:56:02,408 - BPFT_Pipeline - INFO - Command: ollama create mistral-bpft -f /workspace/models/mistral-7b-bpft/Modelfile
+2025-03-19 20:56:02,419 - BPFT_Pipeline - ERROR - [?2026h[?25l[1Ggathering model components [K[?25h[?2026l
+2025-03-19 20:56:02,420 - BPFT_Pipeline - ERROR - Error: no Modelfile or safetensors files found
+2025-03-19 20:56:02,420 - BPFT_Pipeline - ERROR - Failed: Training BPFT model with Ollama
+2025-03-19 20:56:02,420 - BPFT_Pipeline - ERROR - BPFT training failed. Evaluation may use base model only.
+2025-03-19 20:56:02,420 - BPFT_Pipeline - INFO - Starting: Evaluating BPFT model using Ollama
+2025-03-19 20:56:02,420 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/evaluate_bpft_ollama.py
+2025-03-19 20:56:04,021 - BPFT_Pipeline - ERROR - INFO:httpx:HTTP Request: POST http://127.0.0.1:11434/api/pull "HTTP/1.1 500 Internal Server Error"
+2025-03-19 20:56:04,021 - BPFT_Pipeline - ERROR - ERROR:root:Failed to load model mistral-7b: pull model manifest: file does not exist (status code: 500)
+2025-03-19 20:56:04,021 - BPFT_Pipeline - ERROR - Failed: Evaluating BPFT model using Ollama
+2025-03-19 20:56:04,021 - BPFT_Pipeline - ERROR - BPFT evaluation failed.
+2025-03-19 20:57:41,247 - BPFT_Pipeline - INFO - Starting BPFT pipeline with Ollama
+2025-03-19 20:57:41,247 - BPFT_Pipeline - INFO - Created directory: /workspace/data/bpft
+2025-03-19 20:57:41,247 - BPFT_Pipeline - INFO - Created directory: /workspace/models/mistral-7b-bpft
+2025-03-19 20:57:41,247 - BPFT_Pipeline - INFO - Created directory: /workspace/results
+2025-03-19 20:57:41,247 - BPFT_Pipeline - INFO - Created directory: /workspace/logs
+2025-03-19 20:57:41,247 - BPFT_Pipeline - INFO - Starting: Preparing BPFT dataset
+2025-03-19 20:57:41,247 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/prepare_bpft_dataset.py
+2025-03-19 20:57:48,380 - BPFT_Pipeline - INFO - Generating training samples...
+2025-03-19 20:57:49,093 - BPFT_Pipeline - INFO - Completed: Preparing BPFT dataset in 7.85 seconds
+2025-03-19 20:57:49,094 - BPFT_Pipeline - INFO - Starting: Training BPFT model with Ollama
+2025-03-19 20:57:49,094 - BPFT_Pipeline - INFO - Command: ollama create mistral-bpft -f /workspace/models/mistral-7b-bpft/Modelfile
+2025-03-19 20:57:49,103 - BPFT_Pipeline - ERROR - [?2026h[?25l[1Ggathering model components [K[?25h[?2026l
+2025-03-19 20:57:49,103 - BPFT_Pipeline - ERROR - Error: no Modelfile or safetensors files found
+2025-03-19 20:57:49,103 - BPFT_Pipeline - ERROR - Failed: Training BPFT model with Ollama
+2025-03-19 20:57:49,103 - BPFT_Pipeline - ERROR - BPFT training failed. Evaluation may use base model only.
+2025-03-19 20:57:49,103 - BPFT_Pipeline - INFO - Starting: Evaluating BPFT model using Ollama
+2025-03-19 20:57:49,103 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/evaluate_bpft_ollama.py
+2025-03-19 20:57:52,769 - BPFT_Pipeline - INFO - Completed: Evaluating BPFT model using Ollama in 3.67 seconds
+2025-03-19 20:57:52,769 - BPFT_Pipeline - INFO - BPFT pipeline completed successfully with Ollama

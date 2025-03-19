@@ -220,3 +220,77 @@
 2025-03-19 20:06:37,417 - BPFT_Pipeline - ERROR - Access to model mistralai/Mistral-7B-v0.1 is restricted. You must have access to it and be authenticated to access it. Please log in.
 2025-03-19 20:06:37,417 - BPFT_Pipeline - ERROR - Failed: Preparing BPFT dataset
 2025-03-19 20:06:37,417 - BPFT_Pipeline - ERROR - Dataset preparation failed. Stopping pipeline.
+2025-03-19 20:20:41,435 - BPFT_Pipeline - INFO - Starting BPFT pipeline with Ollama
+2025-03-19 20:20:41,435 - BPFT_Pipeline - INFO - Created directory: /workspace/data/bpft
+2025-03-19 20:20:41,435 - BPFT_Pipeline - INFO - Created directory: /workspace/models/mistral-7b-bpft
+2025-03-19 20:20:41,435 - BPFT_Pipeline - INFO - Created directory: /workspace/results
+2025-03-19 20:20:41,435 - BPFT_Pipeline - INFO - Created directory: /workspace/logs
+2025-03-19 20:20:41,435 - BPFT_Pipeline - INFO - Starting: Preparing BPFT dataset
+2025-03-19 20:20:41,435 - BPFT_Pipeline - INFO - Command: python /workspace/scripts/prepare_bpft_dataset.py
+2025-03-19 20:20:43,935 - BPFT_Pipeline - INFO - Loading models...
+2025-03-19 20:20:46,060 - BPFT_Pipeline - ERROR - [nltk_data] Downloading package punkt to /root/nltk_data...
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - [nltk_data]   Package punkt is already up-to-date!
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - Traceback (most recent call last):
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/venv/main/lib/python3.10/site-packages/huggingface_hub/utils/_http.py", line 409, in hf_raise_for_status
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - response.raise_for_status()
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/venv/main/lib/python3.10/site-packages/requests/models.py", line 1024, in raise_for_status
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - raise HTTPError(http_error_msg, response=self)
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url: https://huggingface.co/mistralai/Mistral-7B-v0.1/resolve/main/config.json
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - 
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - The above exception was the direct cause of the following exception:
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - 
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - Traceback (most recent call last):
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/venv/main/lib/python3.10/site-packages/transformers/utils/hub.py", line 342, in cached_file
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - resolved_file = hf_hub_download(
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/venv/main/lib/python3.10/site-packages/huggingface_hub/utils/_validators.py", line 114, in _inner_fn
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - return fn(*args, **kwargs)
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/venv/main/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 862, in hf_hub_download
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - return _hf_hub_download_to_cache_dir(
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/venv/main/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 969, in _hf_hub_download_to_cache_dir
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - _raise_on_head_call_error(head_call_error, force_download, local_files_only)
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/venv/main/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 1486, in _raise_on_head_call_error
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - raise head_call_error
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/venv/main/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 1376, in _get_metadata_or_catch_error
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - metadata = get_hf_file_metadata(
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/venv/main/lib/python3.10/site-packages/huggingface_hub/utils/_validators.py", line 114, in _inner_fn
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - return fn(*args, **kwargs)
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/venv/main/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 1296, in get_hf_file_metadata
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - r = _request_wrapper(
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/venv/main/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 280, in _request_wrapper
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - response = _request_wrapper(
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/venv/main/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 304, in _request_wrapper
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - hf_raise_for_status(response)
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/venv/main/lib/python3.10/site-packages/huggingface_hub/utils/_http.py", line 426, in hf_raise_for_status
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - raise _format(GatedRepoError, message, response) from e
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - huggingface_hub.errors.GatedRepoError: 401 Client Error. (Request ID: Root=1-67db271d-184f3cd8646f0d0316e9d077;3bbd34c1-8b7e-4ef7-8792-5d3521210960)
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - 
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - Cannot access gated repo for url https://huggingface.co/mistralai/Mistral-7B-v0.1/resolve/main/config.json.
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - Access to model mistralai/Mistral-7B-v0.1 is restricted. You must have access to it and be authenticated to access it. Please log in.
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - 
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - The above exception was the direct cause of the following exception:
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - 
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - Traceback (most recent call last):
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/workspace/scripts/prepare_bpft_dataset.py", line 128, in <module>
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - main()
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/workspace/scripts/prepare_bpft_dataset.py", line 123, in main
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - tokenizer, sentence_model = init_models()
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/workspace/scripts/prepare_bpft_dataset.py", line 24, in init_models
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-v0.1")
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/venv/main/lib/python3.10/site-packages/transformers/models/auto/tokenization_auto.py", line 901, in from_pretrained
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - config = AutoConfig.from_pretrained(
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/venv/main/lib/python3.10/site-packages/transformers/models/auto/configuration_auto.py", line 1075, in from_pretrained
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - config_dict, unused_kwargs = PretrainedConfig.get_config_dict(pretrained_model_name_or_path, **kwargs)
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/venv/main/lib/python3.10/site-packages/transformers/configuration_utils.py", line 594, in get_config_dict
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - config_dict, kwargs = cls._get_config_dict(pretrained_model_name_or_path, **kwargs)
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/venv/main/lib/python3.10/site-packages/transformers/configuration_utils.py", line 653, in _get_config_dict
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - resolved_config_file = cached_file(
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - File "/venv/main/lib/python3.10/site-packages/transformers/utils/hub.py", line 360, in cached_file
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - raise EnvironmentError(
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - OSError: You are trying to access a gated repo.
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - Make sure to have access to it at https://huggingface.co/mistralai/Mistral-7B-v0.1.
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - 401 Client Error. (Request ID: Root=1-67db271d-184f3cd8646f0d0316e9d077;3bbd34c1-8b7e-4ef7-8792-5d3521210960)
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - 
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - Cannot access gated repo for url https://huggingface.co/mistralai/Mistral-7B-v0.1/resolve/main/config.json.
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - Access to model mistralai/Mistral-7B-v0.1 is restricted. You must have access to it and be authenticated to access it. Please log in.
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - Failed: Preparing BPFT dataset
+2025-03-19 20:20:46,061 - BPFT_Pipeline - ERROR - Dataset preparation failed. Stopping pipeline.

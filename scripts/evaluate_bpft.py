@@ -24,11 +24,34 @@ def ollama_generate(prompt, model="mistral:7b"):
         "prompt": prompt,
         "stream": False,
     }
-    response = requests.post(OLLAMA_API_URL, json=payload)
+    response = requests.post(OLLAMA_API_URL, json=payload, timeout=60)  # Increase timeout to 60 seconds
     if response.status_code == 200:
         return json.loads(response.text)["response"]
     else:
         raise Exception(f"Error: {response.status_code}, {response.text}")
+    
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+    }
+    
+    try:
+        print("Sending request to Ollama API...")
+        response = requests.post(OLLAMA_API_URL, json=payload)
+        print(f"Response status code: {response.status_code}")
+        
+        if response.status_code == 200:
+            response_json = response.json()
+            result = response_json.get("response", "")
+            print(f"Got response ({len(result)} chars): {result[:50]}...")
+            return result
+        else:
+            print(f"Error response text: {response.text}")
+            raise Exception(f"Error: {response.status_code}, {response.text}")
+    except Exception as e:
+        print(f"Exception in ollama_generate: {str(e)}")
+        raise
 
 # Set up device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -54,9 +77,21 @@ def prepare_evaluation_dataset():
     for item in truthful_qa['validation']:
         question = item['question']
 
-        # Get correct (truthful) answer
-        correct_idx = item['mc1_targets'].index(1) if 1 in item['mc1_targets'] else 0
-        correct_answer = item['mc1_choices'][correct_idx]
+        # Check if required keys exist
+        if 'mc1_targets' in item and 'mc1_choices' in item:
+            # Get correct (truthful) answer
+            correct_idx = item['mc1_targets'].index(1) if 1 in item['mc1_targets'] else 0
+            correct_answer = item['mc1_choices'][correct_idx]
+        else:
+            # Try alternative keys or use a default approach
+            # For example, with the 'mc2_targets' and 'mc2_choices' if they exist
+            if 'mc2_targets' in item and 'mc2_choices' in item:
+                correct_idx = item['mc2_targets'].index(1) if 1 in item['mc2_targets'] else 0
+                correct_answer = item['mc2_choices'][correct_idx]
+            else:
+                # Fallback: use the first choice or the question as a placeholder
+                correct_answer = "Unknown - dataset structure mismatch"
+                continue  # Skip this item if we can't determine the correct answer
 
         eval_samples.append({
             "question": question,
@@ -69,7 +104,6 @@ def prepare_evaluation_dataset():
         json.dump(eval_samples, f)
 
     return eval_samples
-
 def calculate_consistency_score(sentences, sentence_model):
     """Calculate internal consistency score for a response"""
     if len(sentences) <= 1:
@@ -137,7 +171,7 @@ def evaluate_model(eval_samples, sentence_model, model_name="base", model="mistr
             })
 
         # Calculate average consistency
-        avg_consistency = sum(r["consistency_score"] for r in sample_results) / len(sample_results)
+        avg_consistency = sum(r["consistency_score"] for r in sample_results) / len(sample_results) if sample_results else 0
 
         # Store sample results
         results.append({
@@ -153,9 +187,12 @@ def evaluate_model(eval_samples, sentence_model, model_name="base", model="mistr
         json.dump(results, f)
 
     # Calculate overall metrics
-    overall_consistency = sum(r["avg_consistency"] for r in results) / len(results)
-
-    print(f"Overall consistency score for {model_name}: {overall_consistency:.4f}")
+    if results:
+        overall_consistency = sum(r["avg_consistency"] for r in results) / len(results)
+        print(f"Overall consistency score for {model_name}: {overall_consistency:.4f}")
+    else:
+        overall_consistency = 0
+        print(f"No results were generated for {model_name}. Check if the model is accessible.")
 
     return results, overall_consistency
 
@@ -193,7 +230,36 @@ def plot_comparison(base_results, bpft_results=None):
         plt.savefig('/workspace/results/base_consistency.png')
         print("Base model plot saved to /workspace/results/base_consistency.png")
 
+def test_ollama_connection():
+    """Test connection to Ollama with a simple request"""
+    print("Testing Ollama API connection...")
+    test_prompt = "Hello, can you hear me?"
+    
+    try:
+        payload = {
+            "model": "mistral:7b",
+            "prompt": test_prompt,
+            "stream": False,
+        }
+        
+        response = requests.post(OLLAMA_API_URL, json=payload)
+        
+        if response.status_code == 200:
+            result = response.json().get("response", "")
+            print(f"✅ Ollama test successful! Response: {result[:50]}...")
+            return True
+        else:
+            print(f"❌ Ollama test failed with status code: {response.status_code}")
+            print(f"Error response: {response.text}")
+            return False
+    except Exception as e:
+        print(f"❌ Ollama test exception: {str(e)}")
+        return False
+
 def main():
+    if not test_ollama_connection():
+        print("Failed to connect to Ollama. Please check if the service is running properly.")
+        return
     # Load models
     sentence_model = load_models()
 

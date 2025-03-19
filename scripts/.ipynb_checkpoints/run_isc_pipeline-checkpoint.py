@@ -19,7 +19,7 @@ labels = [1, 0]  # 1: hallucinated, 0: factual
 # Extract hidden states and save for training
 hidden_states_data = []
 for text in sample_texts:
-    extracted_states = extract_hidden_states(text)
+    extracted_states = extract_hidden_states(text, model="mistral:7b")  # Updated model name
     flattened_states = np.mean(extracted_states["layer_16"], axis=1)
     hidden_states_data.append(flattened_states)
 
@@ -33,5 +33,5 @@ train_model(model, hidden_states_data, labels, hidden_states_data, labels)
 
 # Monitor a new sample
 test_text = "The moon is made of cheese."
-hallucinated = monitor_hallucination(test_text)
+hallucinated = monitor_hallucination(test_text, model="mistral:7b")  # Updated model name
 print(f"ISC Pipeline Completed. Hallucination Detected: {hallucinated}")

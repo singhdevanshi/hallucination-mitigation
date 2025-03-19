@@ -12,9 +12,9 @@ with open(data_path, "r") as f:
     train_texts = f.readlines()
 
 # Fine-tune the model with KGRO
-fine_tune_with_kgro(train_texts, knowledge_path)
+fine_tune_with_kgro(train_texts, knowledge_path, model="mistral:7b")  # Updated model name
 
 # Optimize a sample query
 test_query = "When was the first airplane flown?"
-optimized_response = optimize_response(test_query)
+optimized_response = optimize_response(test_query, model="mistral:7b")  # Updated model name
 print(f"KGRO Pipeline Complete. Optimized Response: {optimized_response}")

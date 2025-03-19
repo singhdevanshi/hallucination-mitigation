@@ -17,7 +17,7 @@ nltk.download('punkt')
 # Ollama API URL
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 
-def ollama_generate(prompt, model="mistral"):
+def ollama_generate(prompt, model="mistral:7b"):
     """Generate response from Ollama using the specified model."""
     payload = {
         "model": model,
@@ -91,7 +91,7 @@ def calculate_consistency_score(sentences, sentence_model):
     # Return average similarity as consistency score
     return sum(similarities) / len(similarities) if similarities else 1.0
 
-def generate_responses(question, model="mistral", num_samples=5):
+def generate_responses(question, model="mistral:7b", num_samples=5):
     """Generate multiple responses using Ollama to calculate consistency"""
     responses = []
     prompt = f"Question: {question}\nAnswer: "
@@ -107,7 +107,7 @@ def generate_responses(question, model="mistral", num_samples=5):
 
     return responses
 
-def evaluate_model(eval_samples, sentence_model, model_name="base", model="mistral"):
+def evaluate_model(eval_samples, sentence_model, model_name="base", model="mistral:7b"):
     """Evaluate model's hallucination tendency using Ollama"""
     print(f"Evaluating {model_name} model using Ollama...")
 
@@ -202,14 +202,14 @@ def main():
 
     # Evaluate base model using Mistral 7B via Ollama
     base_results, base_consistency = evaluate_model(
-        eval_samples, sentence_model, "base", model="mistral"
+        eval_samples, sentence_model, "base", model="mistral:7b"
     )
 
     # Evaluate BPFT fine-tuned model if available
     if os.path.exists('/workspace/models/mistral-7b-bpft-final'):
         print("Evaluating BPFT fine-tuned model with Ollama...")
         bpft_results, bpft_consistency = evaluate_model(
-            eval_samples, sentence_model, "bpft", model="mistral"
+            eval_samples, sentence_model, "bpft", model="mistral-bpft:latest"
         )
 
         # Plot comparison

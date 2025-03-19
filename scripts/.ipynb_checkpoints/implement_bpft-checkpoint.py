@@ -14,7 +14,7 @@ OLLAMA_API_URL = "http://localhost:11434/api/generate"
 os.makedirs('/workspace/models/mistral7b_bpft', exist_ok=True)
 os.makedirs('/workspace/results/bpft_logs', exist_ok=True)
 
-def ollama_generate(prompt, model="mistral"):
+def ollama_generate(prompt, model="mistral:7b"):
     """Generate response from Ollama using the specified model."""
     payload = {
         "model": model,
@@ -80,7 +80,7 @@ def train_bpft_model(data_path, embedder, epochs=3):
             input_embedding = embedder.encode(input_text).mean(axis=0)
 
             # Generate response using Ollama
-            response = ollama_generate(input_text, model="mistral")
+            response = ollama_generate(input_text, model="mistral:7b")
             response_embedding = embedder.encode(response).mean(axis=0)
 
             # Calculate BPFT loss

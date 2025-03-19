@@ -12,7 +12,7 @@ OLLAMA_API_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 embedder = SentenceTransformer(MODEL_NAME)
 
-def ollama_generate(prompt, model="mistral", max_length=100, temperature=0.7):
+def ollama_generate(prompt, model="mistral:7b", max_length=100, temperature=0.7):
     """Generate response using Ollama API with knowledge-enhanced prompt."""
     payload = {
         "model": model,
@@ -26,7 +26,7 @@ def ollama_generate(prompt, model="mistral", max_length=100, temperature=0.7):
     else:
         raise Exception(f"Error: {response.status_code}, {response.text}")
 
-def optimize_response(query, max_length=100, top_k=3, model="mistral"):
+def optimize_response(query, max_length=100, top_k=3, model="mistral:7b"):
     """Optimize response by integrating retrieved knowledge using KGRO."""
     try:
         # Retrieve relevant external knowledge
@@ -52,5 +52,5 @@ def optimize_response(query, max_length=100, top_k=3, model="mistral"):
 
 if __name__ == "__main__":
     sample_query = "Who invented the telephone?"
-    optimized_response = optimize_response(sample_query, max_length=100, top_k=3, model="mistral")
+    optimized_response = optimize_response(sample_query, max_length=100, top_k=3, model="mistral:7b")
     print(f"Optimized Response: {optimized_response}")

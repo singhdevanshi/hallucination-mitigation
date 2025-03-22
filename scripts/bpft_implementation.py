@@ -14,8 +14,8 @@ from torch.nn import KLDivLoss
 from torch.nn.functional import log_softmax, softmax
 
 # Setup constants
-MODEL_ID = "mistralai/Mixtral-8x7B-v0.1"
-OUTPUT_DIR = "./mixtral-bpft"
+MODEL_ID = "mistralai/Mistral-7B-v0.1"
+OUTPUT_DIR = "./mistral-bpft"
 LEARNING_RATE = 2e-5
 BATCH_SIZE = 4
 GRADIENT_ACCUMULATION_STEPS = 4

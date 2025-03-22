@@ -23,7 +23,7 @@ from crossref_commons.retrieval import get_publication_as_json
 import re
 
 class ComprehensiveEvaluator:
-    def __init__(self, model_name: str = "mistralai/Mixtral-8x7B-v0.1"):
+    def __init__(self, model_name: str = "mistralai/Mistral-7B-v0.1"):
         """Initialize the comprehensive evaluation framework."""
         self.model_name = model_name
         self.device = "cuda" if torch.cuda.is_available() else "cpu"

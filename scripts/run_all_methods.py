@@ -5,7 +5,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Run hallucination mitigation techniques for Llama-3.2-3B')
+parser = argparse.ArgumentParser(description='Run hallucination mitigation techniques for Llama-3.1-8B-Instruct')
 parser.add_argument('--method', type=str, choices=['bpft', 'isc', 'kgro', 'all'], default='all',
                    help='Which hallucination mitigation method to run (default: all)')
 parser.add_argument('--train', action='store_true', help='Run training (default: False, only inference)')
@@ -33,7 +33,7 @@ def run_bpft(train=False, prompt="What is the capital of France?"):
     else:
         # Run inference only
         print("Running BPFT inference...")
-        model_path = "./llama-bpft/final"
+        model_path = "./llama-8b-bpft/final"
         
         if not os.path.exists(model_path):
             print(f"Error: Model not found at {model_path}")
@@ -76,7 +76,7 @@ def run_isc(train=False, prompt="What is the capital of France?"):
     else:
         # Run inference only
         print("Running ISC inference...")
-        model_path = "./llama-isc/final"
+        model_path = "./llama-8b-isc/final"
         
         if not os.path.exists(model_path):
             print(f"Error: Model not found at {model_path}")
@@ -136,7 +136,7 @@ def run_kgro(train=False, prompt="What is the capital of France?"):
     else:
         # Run inference only
         print("Running KGRO inference...")
-        model_path = "./llama-kgro/final"
+        model_path = "./llama-8b-kgro/final"
         
         if not os.path.exists(model_path):
             print(f"Error: Model not found at {model_path}")

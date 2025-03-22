@@ -18,8 +18,8 @@ import requests
 from bs4 import BeautifulSoup
 
 # Setup constants
-MODEL_ID = "meta-llama/Llama-3.2-3B"
-OUTPUT_DIR = "./llama-kgro"
+MODEL_ID = "meta-llama/Llama-3.1-8B-Instruct"
+OUTPUT_DIR = "./llama-8b-kgro"
 LEARNING_RATE = 2e-5
 BATCH_SIZE = 4
 GRADIENT_ACCUMULATION_STEPS = 4

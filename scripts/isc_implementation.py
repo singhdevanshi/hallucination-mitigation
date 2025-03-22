@@ -12,8 +12,8 @@ from transformers import (
 from torch import nn
 
 # Setup constants
-MODEL_ID = "meta-llama/Llama-3.2-3B"
-OUTPUT_DIR = "./llama-isc"
+MODEL_ID = "meta-llama/Llama-3.1-8B-Instruct"
+OUTPUT_DIR = "./llama-8b-isc"
 LEARNING_RATE = 3e-5
 BATCH_SIZE = 2
 GRADIENT_ACCUMULATION_STEPS = 8

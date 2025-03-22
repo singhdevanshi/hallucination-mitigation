@@ -14,8 +14,8 @@ from torch.nn import KLDivLoss
 from torch.nn.functional import log_softmax, softmax
 
 # Setup constants
-MODEL_ID = "mistralai/Mistral-7B-v0.1"
-OUTPUT_DIR = "./mistral-bpft"
+MODEL_ID = "meta-llama/Llama-3.2-3B"
+OUTPUT_DIR = "./llama-bpft"
 LEARNING_RATE = 2e-5
 BATCH_SIZE = 4
 GRADIENT_ACCUMULATION_STEPS = 4

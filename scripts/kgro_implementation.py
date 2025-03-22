@@ -18,8 +18,8 @@ import requests
 from bs4 import BeautifulSoup
 
 # Setup constants
-MODEL_ID = "mistralai/Mistral-7B-v0.1"
-OUTPUT_DIR = "./mistral-kgro"
+MODEL_ID = "meta-llama/Llama-3.2-3B"
+OUTPUT_DIR = "./llama-kgro"
 LEARNING_RATE = 2e-5
 BATCH_SIZE = 4
 GRADIENT_ACCUMULATION_STEPS = 4

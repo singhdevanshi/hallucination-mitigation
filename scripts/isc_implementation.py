@@ -12,8 +12,8 @@ from transformers import (
 from torch import nn
 
 # Setup constants
-MODEL_ID = "mistralai/Mistral-7B-v0.1"
-OUTPUT_DIR = "./mistral-isc"
+MODEL_ID = "meta-llama/Llama-3.2-3B"
+OUTPUT_DIR = "./llama-isc"
 LEARNING_RATE = 3e-5
 BATCH_SIZE = 2
 GRADIENT_ACCUMULATION_STEPS = 8

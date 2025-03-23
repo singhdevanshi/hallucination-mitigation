@@ -8,31 +8,73 @@ from transformers import (
     AutoTokenizer,
     Trainer,
     TrainingArguments,
-    DataCollatorForLanguageModeling
+    DataCollatorForLanguageModeling,
+    BitsAndBytesConfig
 )
 from torch.nn import KLDivLoss
 from torch.nn.functional import log_softmax, softmax
+from dataclasses import dataclass
+from typing import Dict, List, Union
+from peft import (
+    LoraConfig,
+    get_peft_model,
+    prepare_model_for_kbit_training,
+    TaskType
+)
 
 # Setup constants
-MODEL_ID = "mistralai/Mixtral-8x7B-v0.1"
-OUTPUT_DIR = "./mixtral-bpft"
+MODEL_ID = "meta-llama/Llama-3.1-8B-Instruct"
+OUTPUT_DIR = "./llama-8b-bpft"
 LEARNING_RATE = 2e-5
-BATCH_SIZE = 4
-GRADIENT_ACCUMULATION_STEPS = 4
+BATCH_SIZE = 1  # Reduced to 1
+GRADIENT_ACCUMULATION_STEPS = 16  # Increased to compensate for smaller batch size
 NUM_EPOCHS = 3
 LAMBDA = 0.1  # Hyperparameter for belief alignment strength
+MAX_LENGTH = 128  # Further reduced to save memory
+
+# Set PyTorch memory allocator configuration
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 
 # Initialize tokenizer
 tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, token=os.environ.get("HF_TOKEN"))
 tokenizer.pad_token = tokenizer.eos_token
 
-# Initialize model
+# Configure 8-bit quantization
+quantization_config = BitsAndBytesConfig(
+    load_in_8bit=True,
+    llm_int8_threshold=6.0,
+    llm_int8_has_fp16_weight=False
+)
+
+# Initialize model with 8-bit quantization and CPU offloading
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_ID,
-    torch_dtype=torch.float16,
+    quantization_config=quantization_config,
     device_map="auto",
-    token=os.environ.get("HF_TOKEN")
+    token=os.environ.get("HF_TOKEN"),
+    offload_folder="offload",  # Enable CPU offloading
+    offload_state_dict=True,  # Offload state dict to CPU
+    torch_dtype=torch.float16
 )
+
+# Prepare model for k-bit training
+model = prepare_model_for_kbit_training(model)
+
+# Configure LoRA with reduced rank
+lora_config = LoraConfig(
+    r=8,  # Reduced rank from 16 to 8
+    lora_alpha=16,  # Reduced alpha from 32 to 16
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],  # Target modules for LoRA
+    lora_dropout=0.05,
+    bias="none",
+    task_type=TaskType.CAUSAL_LM,
+)
+
+# Get PEFT model
+model = get_peft_model(model, lora_config)
+model.print_trainable_parameters()  # Print trainable parameters
+
+model.gradient_checkpointing_enable()  # Enable gradient checkpointing
 
 # Load factual dataset (example: TruthfulQA)
 # You should replace this with your specific dataset
@@ -136,9 +178,65 @@ bpft_dataset = BPFTDataset(
     tokenizer
 )
 
+# Add custom data collator
+@dataclass
+class BPFTDataCollator:
+    tokenizer: AutoTokenizer
+    max_length: int = 512
+    
+    def __call__(self, features: List[Dict[str, Union[List[int], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
+        # Separate correct and incorrect inputs
+        correct_inputs = []
+        incorrect_inputs = []
+        
+        for feature in features:
+            # Handle correct inputs
+            correct_inputs.append({
+                "input_ids": feature["input_ids"],
+                "attention_mask": feature["attention_mask"],
+                "labels": feature["labels"]
+            })
+            
+            # Handle incorrect inputs
+            if "incorrect_input_ids" in feature and "incorrect_attention_mask" in feature:
+                incorrect_inputs.append({
+                    "input_ids": feature["incorrect_input_ids"],
+                    "attention_mask": feature["incorrect_attention_mask"]
+                })
+            else:
+                # If incorrect inputs are missing, use the correct inputs as a fallback
+                incorrect_inputs.append({
+                    "input_ids": feature["input_ids"],
+                    "attention_mask": feature["attention_mask"]
+                })
+        
+        # Collate correct inputs
+        correct_batch = self.tokenizer.pad(
+            correct_inputs,
+            padding=True,
+            max_length=self.max_length,
+            return_tensors="pt"
+        )
+        
+        # Collate incorrect inputs
+        incorrect_batch = self.tokenizer.pad(
+            incorrect_inputs,
+            padding=True,
+            max_length=self.max_length,
+            return_tensors="pt"
+        )
+        
+        return {
+            "input_ids": correct_batch["input_ids"],
+            "attention_mask": correct_batch["attention_mask"],
+            "labels": correct_batch["input_ids"].clone(),
+            "incorrect_input_ids": incorrect_batch["input_ids"],
+            "incorrect_attention_mask": incorrect_batch["attention_mask"]
+        }
+
 # Define custom loss function for BPFT
 class BPFTTrainer(Trainer):
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         # Extract inputs
         input_ids = inputs["input_ids"]
         attention_mask = inputs["attention_mask"]
@@ -146,21 +244,23 @@ class BPFTTrainer(Trainer):
         incorrect_input_ids = inputs["incorrect_input_ids"]
         incorrect_attention_mask = inputs["incorrect_attention_mask"]
         
-        # Forward pass for correct response
+        # Forward pass for correct response with memory optimization
         outputs = model(
             input_ids=input_ids,
             attention_mask=attention_mask,
             labels=labels,
-            output_hidden_states=True
+            output_hidden_states=True,
+            use_cache=False  # Disable KV cache to save memory
         )
         correct_loss = outputs.loss
         
-        # Forward pass for incorrect response (without labels)
+        # Forward pass for incorrect response with memory optimization
         with torch.no_grad():
             baseline_outputs = model(
                 input_ids=incorrect_input_ids,
                 attention_mask=incorrect_attention_mask,
-                output_hidden_states=True
+                output_hidden_states=True,
+                use_cache=False  # Disable KV cache to save memory
             )
         
         # Calculate KL divergence loss to enforce belief alignment
@@ -169,23 +269,49 @@ class BPFTTrainer(Trainer):
         valid_pos = (labels != -100).nonzero(as_tuple=True)[0]
         
         if len(valid_pos) > 0:
-            # Get logits from both outputs at valid positions
-            correct_logits = outputs.logits[valid_pos]
-            baseline_logits = baseline_outputs.logits[valid_pos]
+            # Process logits in smaller chunks to save memory
+            chunk_size = 8  # Reduced chunk size
+            num_chunks = (len(valid_pos) + chunk_size - 1) // chunk_size
             
-            # Calculate KL divergence
             kl_div = KLDivLoss(reduction="batchmean")
-            kl_loss = kl_div(
-                log_softmax(correct_logits, dim=-1),
-                softmax(baseline_logits, dim=-1)
-            )
+            
+            for i in range(num_chunks):
+                start_idx = i * chunk_size
+                end_idx = min((i + 1) * chunk_size, len(valid_pos))
+                chunk_pos = valid_pos[start_idx:end_idx]
+                
+                # Get logits for current chunk
+                correct_chunk = outputs.logits[chunk_pos]
+                baseline_chunk = baseline_outputs.logits[chunk_pos]
+                
+                # Calculate KL divergence for chunk
+                chunk_kl_loss = kl_div(
+                    log_softmax(correct_chunk, dim=-1),
+                    softmax(baseline_chunk, dim=-1)
+                )
+                
+                # Accumulate loss
+                kl_loss += chunk_kl_loss
+                
+                # Clear chunk tensors
+                del correct_chunk
+                del baseline_chunk
+                torch.cuda.empty_cache()
+            
+            # Average KL loss across chunks
+            kl_loss /= num_chunks
         
         # Combine losses
         total_loss = correct_loss + LAMBDA * kl_loss
         
+        # Clear unnecessary tensors to free memory
+        del outputs.logits
+        del baseline_outputs.logits
+        torch.cuda.empty_cache()
+        
         return (total_loss, outputs) if return_outputs else total_loss
 
-# Configure training arguments
+# Configure training arguments with memory optimizations
 training_args = TrainingArguments(
     output_dir=OUTPUT_DIR,
     overwrite_output_dir=True,
@@ -198,6 +324,14 @@ training_args = TrainingArguments(
     logging_dir=f"{OUTPUT_DIR}/logs",
     logging_steps=10,
     report_to="tensorboard",
+    gradient_checkpointing=True,  # Enable gradient checkpointing
+    optim="adamw_torch_fused",  # Use fused optimizer for better memory efficiency
+    max_grad_norm=1.0,  # Add gradient clipping
+    warmup_ratio=0.1,  # Add warmup to stabilize training
+    lr_scheduler_type="cosine",  # Use cosine learning rate schedule
+    dataloader_pin_memory=False,  # Disable pin memory to save RAM
+    dataloader_num_workers=0,  # Disable multiprocessing to save memory
+    deepspeed="ds_config.json",  # Enable DeepSpeed for memory optimization
 )
 
 # Create trainer
@@ -205,6 +339,7 @@ trainer = BPFTTrainer(
     model=model,
     args=training_args,
     train_dataset=bpft_dataset,
+    data_collator=BPFTDataCollator(tokenizer=tokenizer),
     tokenizer=tokenizer,
 )
 

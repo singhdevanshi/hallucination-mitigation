@@ -12,8 +12,8 @@ from transformers import (
 from torch import nn
 
 # Setup constants
-MODEL_ID = "mistralai/Mixtral-8x7B-v0.1"
-OUTPUT_DIR = "./mixtral-isc"
+MODEL_ID = "meta-llama/Llama-3.1-8B-Instruct"
+OUTPUT_DIR = "./llama-8b-isc"
 LEARNING_RATE = 3e-5
 BATCH_SIZE = 2
 GRADIENT_ACCUMULATION_STEPS = 8
@@ -182,7 +182,7 @@ isc_model = ISCModel(base_model)
 
 # Define custom trainer for ISC
 class ISCTrainer(Trainer):
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         # Extract inputs
         input_ids = inputs["input_ids"]
         attention_mask = inputs["attention_mask"]

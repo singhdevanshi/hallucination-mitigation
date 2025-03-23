@@ -182,7 +182,7 @@ isc_model = ISCModel(base_model)
 
 # Define custom trainer for ISC
 class ISCTrainer(Trainer):
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         # Extract inputs
         input_ids = inputs["input_ids"]
         attention_mask = inputs["attention_mask"]

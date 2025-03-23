@@ -270,7 +270,7 @@ class BPFTTrainer(Trainer):
         
         if len(valid_pos) > 0:
             # Process logits in smaller chunks to save memory
-            chunk_size = 8  # Reduced chunk size
+            chunk_size = 2  # Further reduced chunk size
             num_chunks = (len(valid_pos) + chunk_size - 1) // chunk_size
             
             kl_div = KLDivLoss(reduction="batchmean")
@@ -284,11 +284,31 @@ class BPFTTrainer(Trainer):
                 correct_chunk = outputs.logits[chunk_pos]
                 baseline_chunk = baseline_outputs.logits[chunk_pos]
                 
+                # Calculate softmax and log_softmax in smaller steps to save memory
+                with torch.no_grad():
+                    # Process baseline chunk in smaller sub-chunks
+                    baseline_probs = []
+                    sub_chunk_size = 1  # Process one token at a time
+                    for j in range(0, baseline_chunk.size(0), sub_chunk_size):
+                        sub_chunk = baseline_chunk[j:j+sub_chunk_size]
+                        sub_probs = softmax(sub_chunk, dim=-1)
+                        baseline_probs.append(sub_probs)
+                        del sub_chunk
+                        torch.cuda.empty_cache()
+                    baseline_probs = torch.cat(baseline_probs, dim=0)
+                
+                # Process correct chunk in smaller sub-chunks
+                correct_log_probs = []
+                for j in range(0, correct_chunk.size(0), sub_chunk_size):
+                    sub_chunk = correct_chunk[j:j+sub_chunk_size]
+                    sub_log_probs = log_softmax(sub_chunk, dim=-1)
+                    correct_log_probs.append(sub_log_probs)
+                    del sub_chunk
+                    torch.cuda.empty_cache()
+                correct_log_probs = torch.cat(correct_log_probs, dim=0)
+                
                 # Calculate KL divergence for chunk
-                chunk_kl_loss = kl_div(
-                    log_softmax(correct_chunk, dim=-1),
-                    softmax(baseline_chunk, dim=-1)
-                )
+                chunk_kl_loss = kl_div(correct_log_probs, baseline_probs)
                 
                 # Accumulate loss
                 kl_loss += chunk_kl_loss
@@ -296,6 +316,8 @@ class BPFTTrainer(Trainer):
                 # Clear chunk tensors
                 del correct_chunk
                 del baseline_chunk
+                del baseline_probs
+                del correct_log_probs
                 torch.cuda.empty_cache()
             
             # Average KL loss across chunks
@@ -307,6 +329,8 @@ class BPFTTrainer(Trainer):
         # Clear unnecessary tensors to free memory
         del outputs.logits
         del baseline_outputs.logits
+        del outputs.hidden_states
+        del baseline_outputs.hidden_states
         torch.cuda.empty_cache()
         
         return (total_loss, outputs) if return_outputs else total_loss
@@ -326,12 +350,16 @@ training_args = TrainingArguments(
     report_to="tensorboard",
     gradient_checkpointing=True,  # Enable gradient checkpointing
     optim="adamw_torch_fused",  # Use fused optimizer for better memory efficiency
-    max_grad_norm=1.0,  # Add gradient clipping
+    max_grad_norm=0.5,  # Reduce gradient norm to save memory
     warmup_ratio=0.1,  # Add warmup to stabilize training
     lr_scheduler_type="cosine",  # Use cosine learning rate schedule
     dataloader_pin_memory=False,  # Disable pin memory to save RAM
     dataloader_num_workers=0,  # Disable multiprocessing to save memory
     deepspeed="ds_config.json",  # Enable DeepSpeed for memory optimization
+    remove_unused_columns=True,  # Remove unused columns to save memory
+    group_by_length=True,  # Group similar length sequences together
+    length_column_name="length",  # Column name for sequence length
+    gradient_checkpointing_kwargs={"use_reentrant": False},  # Use non-reentrant checkpointing
 )
 
 # Create trainer

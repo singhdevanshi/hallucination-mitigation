@@ -1,0 +1,83 @@
+{
+  "best_global_step": null,
+  "best_metric": null,
+  "best_model_checkpoint": null,
+  "epoch": 2.975609756097561,
+  "eval_steps": 500,
+  "global_step": 75,
+  "is_hyper_param_search": false,
+  "is_local_process_zero": true,
+  "is_world_process_zero": true,
+  "log_history": [
+    {
+      "epoch": 0.3902439024390244,
+      "grad_norm": 1.2749013900756836,
+      "learning_rate": 1.7333333333333336e-05,
+      "loss": 2.3538,
+      "step": 10
+    },
+    {
+      "epoch": 0.7804878048780488,
+      "grad_norm": 1.0917270183563232,
+      "learning_rate": 1.4666666666666666e-05,
+      "loss": 2.2455,
+      "step": 20
+    },
+    {
+      "epoch": 1.1951219512195121,
+      "grad_norm": 1.200708031654358,
+      "learning_rate": 1.2266666666666667e-05,
+      "loss": 2.4018,
+      "step": 30
+    },
+    {
+      "epoch": 1.5853658536585367,
+      "grad_norm": 1.1587852239608765,
+      "learning_rate": 9.600000000000001e-06,
+      "loss": 2.0955,
+      "step": 40
+    },
+    {
+      "epoch": 1.975609756097561,
+      "grad_norm": 1.1105626821517944,
+      "learning_rate": 6.9333333333333344e-06,
+      "loss": 2.1394,
+      "step": 50
+    },
+    {
+      "epoch": 2.3902439024390243,
+      "grad_norm": 1.216267466545105,
+      "learning_rate": 4.266666666666668e-06,
+      "loss": 2.1705,
+      "step": 60
+    },
+    {
+      "epoch": 2.7804878048780486,
+      "grad_norm": 1.4063990116119385,
+      "learning_rate": 1.6000000000000001e-06,
+      "loss": 2.0656,
+      "step": 70
+    }
+  ],
+  "logging_steps": 10,
+  "max_steps": 75,
+  "num_input_tokens_seen": 0,
+  "num_train_epochs": 3,
+  "save_steps": 500,
+  "stateful_callbacks": {
+    "TrainerControl": {
+      "args": {
+        "should_epoch_stop": false,
+        "should_evaluate": false,
+        "should_log": false,
+        "should_save": true,
+        "should_training_stop": true
+      },
+      "attributes": {}
+    }
+  },
+  "total_flos": 5.554195896100454e+16,
+  "train_batch_size": 4,
+  "trial_name": null,
+  "trial_params": null
+}

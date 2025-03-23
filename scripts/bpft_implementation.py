@@ -1,4 +1,3 @@
-# BPFT: Belief Propagation Fine-Tuning Implementation
 import os
 import torch
 import numpy as np
@@ -8,13 +7,10 @@ from transformers import (
     AutoTokenizer,
     Trainer,
     TrainingArguments,
-    DataCollatorForLanguageModeling,
     BitsAndBytesConfig
 )
 from torch.nn import KLDivLoss
 from torch.nn.functional import log_softmax, softmax
-from dataclasses import dataclass
-from typing import Dict, List, Union
 from peft import (
     LoraConfig,
     get_peft_model,
@@ -22,104 +18,116 @@ from peft import (
     TaskType
 )
 
-# Setup constants
+# Constants
 MODEL_ID = "meta-llama/Llama-3.1-8B-Instruct"
 OUTPUT_DIR = "./llama-8b-bpft"
 LEARNING_RATE = 2e-5
-BATCH_SIZE = 1  # Reduced to 1
-GRADIENT_ACCUMULATION_STEPS = 16  # Increased to compensate for smaller batch size
+BATCH_SIZE = 4
+GRADIENT_ACCUMULATION_STEPS = 16
 NUM_EPOCHS = 3
-LAMBDA = 0.1  # Hyperparameter for belief alignment strength
-MAX_LENGTH = 128  # Further reduced to save memory
+LAMBDA = 0.1
+MAX_LENGTH = 512
 
-# Set PyTorch memory allocator configuration
+# Memory optimization
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 
-# Initialize tokenizer
+# Tokenizer initialization
 tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, token=os.environ.get("HF_TOKEN"))
 tokenizer.pad_token = tokenizer.eos_token
 
-# Configure 8-bit quantization
+# 4-bit quantization with double quantization
 quantization_config = BitsAndBytesConfig(
-    load_in_8bit=True,
-    llm_int8_threshold=6.0,
-    llm_int8_has_fp16_weight=False
+    load_in_4bit=True,
+    bnb_4bit_compute_dtype=torch.float16,
+    bnb_4bit_use_double_quant=True,
+    bnb_4bit_quant_type="nf4"
 )
 
-# Initialize model with 8-bit quantization and CPU offloading
+# Model initialization with quantization
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_ID,
     quantization_config=quantization_config,
     device_map="auto",
     token=os.environ.get("HF_TOKEN"),
-    offload_folder="offload",  # Enable CPU offloading
-    offload_state_dict=True,  # Offload state dict to CPU
+    offload_folder="offload",
+    offload_state_dict=True,
     torch_dtype=torch.float16
 )
 
-# Prepare model for k-bit training
+# Prepare for k-bit training
 model = prepare_model_for_kbit_training(model)
 
-# Configure LoRA with reduced rank
+# LoRA configuration with corrected parameters
 lora_config = LoraConfig(
-    r=8,  # Reduced rank from 16 to 8
-    lora_alpha=16,  # Reduced alpha from 32 to 16
-    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],  # Target modules for LoRA
+    r=8,
+    lora_alpha=32,
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
+                    "gate_proj", "up_proj", "down_proj"],
     lora_dropout=0.05,
     bias="none",
     task_type=TaskType.CAUSAL_LM,
 )
 
-# Get PEFT model
+# Apply LoRA
 model = get_peft_model(model, lora_config)
-model.print_trainable_parameters()  # Print trainable parameters
+model.print_trainable_parameters()
 
-model.gradient_checkpointing_enable()  # Enable gradient checkpointing
-
-# Load factual dataset (example: TruthfulQA)
-# You should replace this with your specific dataset
+# Load dataset
 dataset = load_dataset("truthful_qa", "multiple_choice")
 print(f"Loaded dataset with {len(dataset['validation'])} examples")
 
-# Convert the dataset to the format required for BPFT
+# Improved dataset preprocessing
 def preprocess_dataset(examples):
-    # For each example, we need:
-    # 1. Input prompt (question)
-    # 2. Correct response
-    # 3. Incorrect response (contradictory)
+    processed_data = {
+        "prompts": [],
+        "correct_responses": [],
+        "incorrect_responses": []
+    }
     
-    prompts = []
-    correct_responses = []
-    incorrect_responses = []
+    print(f"Processing {len(examples)} examples...")
     
     for i, example in enumerate(examples):
         question = example['question']
-        correct_idx = example['mc1_targets']['labels'].index(1)
+        
+        # Find correct answer (label = 1)
+        correct_indices = [i for i, label in enumerate(example['mc1_targets']['labels']) if label == 1]
+        if not correct_indices:
+            print(f"Example {i}: No correct answer found")
+            continue
+        correct_idx = correct_indices[0]
         correct_answer = example['mc1_targets']['choices'][correct_idx]
         
-        # Find an incorrect answer
-        incorrect_indices = [j for j, label in enumerate(example['mc1_targets']['labels']) if label == 0]
-        if incorrect_indices:
-            incorrect_idx = incorrect_indices[0]
-            incorrect_answer = example['mc1_targets']['choices'][incorrect_idx]
-        else:
-            # Skip examples without incorrect answers
+        # Find incorrect answer (label = 0)
+        incorrect_indices = [i for i, label in enumerate(example['mc1_targets']['labels']) if label == 0]
+        if not incorrect_indices:
+            print(f"Example {i}: No incorrect answer found")
             continue
+        incorrect_idx = incorrect_indices[0]
+        incorrect_answer = example['mc1_targets']['choices'][incorrect_idx]
         
-        prompts.append(f"Question: {question}\nAnswer:")
-        correct_responses.append(correct_answer)
-        incorrect_responses.append(incorrect_answer)
+        # Add to processed data
+        processed_data["prompts"].append(f"Question: {question}\nAnswer:")
+        processed_data["correct_responses"].append(correct_answer)
+        processed_data["incorrect_responses"].append(incorrect_answer)
+        
+        # Debug print for first few examples
+        if i < 3:
+            print(f"\nExample {i}:")
+            print(f"Question: {question}")
+            print(f"Correct answer: {correct_answer}")
+            print(f"Incorrect answer: {incorrect_answer}")
     
-    return {
-        "prompts": prompts,
-        "correct_responses": correct_responses,
-        "incorrect_responses": incorrect_responses
-    }
+    print(f"\nProcessed {len(processed_data['prompts'])} valid examples")
+    print(f"Sample prompt: {processed_data['prompts'][0]}")
+    print(f"Sample correct response: {processed_data['correct_responses'][0]}")
+    print(f"Sample incorrect response: {processed_data['incorrect_responses'][0]}")
+    return processed_data
 
-# Apply preprocessing
+# Preprocess the dataset
+print("Starting dataset preprocessing...")
 train_data = preprocess_dataset(dataset['validation'])
 
-# Create a custom dataset class for BPFT
+# Fixed BPFT dataset class
 class BPFTDataset(torch.utils.data.Dataset):
     def __init__(self, prompts, correct_responses, incorrect_responses, tokenizer, max_length=512):
         self.prompts = prompts
@@ -127,17 +135,37 @@ class BPFTDataset(torch.utils.data.Dataset):
         self.incorrect_responses = incorrect_responses
         self.tokenizer = tokenizer
         self.max_length = max_length
+        
+        # Verify data integrity
+        assert len(self.prompts) == len(self.correct_responses) == len(self.incorrect_responses), \
+            f"Data mismatch: prompts({len(self.prompts)}), correct({len(self.correct_responses)}), incorrect({len(self.incorrect_responses)})"
+        
+        print(f"Dataset initialized with {len(self.prompts)} examples")
+        
+        # Debug first item
+        if len(self.prompts) > 0:
+            first_item = self[0]
+            print("\nFirst item debug info:")
+            print(f"Keys: {list(first_item.keys())}")
+            for key, value in first_item.items():
+                print(f"{key}: shape={value.shape}, type={type(value)}")
     
     def __len__(self):
         return len(self.prompts)
     
     def __getitem__(self, idx):
+        if idx >= len(self.prompts):
+            raise IndexError(f"Index {idx} out of range for dataset with {len(self.prompts)} items")
+            
         prompt = self.prompts[idx]
         correct = self.correct_responses[idx]
         incorrect = self.incorrect_responses[idx]
         
-        # Tokenize prompt with correct response
+        # Create formatted inputs
         correct_input = f"{prompt} {correct}"
+        incorrect_input = f"{prompt} {incorrect}"
+        
+        # Tokenize with consistent settings
         correct_encoding = self.tokenizer(
             correct_input,
             max_length=self.max_length,
@@ -146,8 +174,6 @@ class BPFTDataset(torch.utils.data.Dataset):
             return_tensors="pt"
         )
         
-        # Tokenize prompt with incorrect response
-        incorrect_input = f"{prompt} {incorrect}"
         incorrect_encoding = self.tokenizer(
             incorrect_input,
             max_length=self.max_length,
@@ -156,242 +182,235 @@ class BPFTDataset(torch.utils.data.Dataset):
             return_tensors="pt"
         )
         
-        # Create labels for correct response (used for standard CE loss)
+        # Create labels for the correct sequence
         labels = correct_encoding["input_ids"].clone()
-        # Set prompt tokens to -100 so they don't contribute to loss
-        prompt_tokens = self.tokenizer(prompt, return_tensors="pt")["input_ids"].shape[1]
-        labels[0, :prompt_tokens] = -100
         
-        return {
+        # Find prompt length to mask prompt tokens in labels
+        prompt_tokens = self.tokenizer(prompt, return_tensors="pt")["input_ids"].shape[1]
+        labels[0, :prompt_tokens] = -100  # Set prompt tokens to -100 to ignore in loss
+        
+        # Create and return dictionary with all required fields
+        # Use standard field names for regular inputs and special names for incorrect inputs
+        item = {
             "input_ids": correct_encoding["input_ids"][0],
             "attention_mask": correct_encoding["attention_mask"][0],
             "labels": labels[0],
-            "incorrect_input_ids": incorrect_encoding["input_ids"][0],
-            "incorrect_attention_mask": incorrect_encoding["attention_mask"][0],
+            "incorrect_ids": incorrect_encoding["input_ids"][0],
+            "incorrect_mask": incorrect_encoding["attention_mask"][0],
         }
+        
+        # Debug print for this item (only occasionally to avoid flooding logs)
+        if idx % 200 == 0:
+            print(f"\nItem {idx} debug info:")
+            print(f"Keys: {list(item.keys())}")
+            for key, value in item.items():
+                print(f"{key}: shape={value.shape}, type={type(value)}")
+        
+        return item
 
-# Create BPFT dataset
+# Create the dataset
+print("Creating BPFT dataset...")
 bpft_dataset = BPFTDataset(
     train_data["prompts"],
     train_data["correct_responses"],
     train_data["incorrect_responses"],
-    tokenizer
+    tokenizer,
+    max_length=MAX_LENGTH
 )
 
-# Add custom data collator
-@dataclass
+# Simplified data collator
 class BPFTDataCollator:
-    tokenizer: AutoTokenizer
-    max_length: int = 512
-    
-    def __call__(self, features: List[Dict[str, Union[List[int], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
-        # Separate correct and incorrect inputs
-        correct_inputs = []
-        incorrect_inputs = []
+    def __call__(self, features):
+        if not features:
+            raise ValueError("No features provided to data collator")
         
-        for feature in features:
-            # Handle correct inputs
-            correct_inputs.append({
-                "input_ids": feature["input_ids"],
-                "attention_mask": feature["attention_mask"],
-                "labels": feature["labels"]
-            })
-            
-            # Handle incorrect inputs
-            if "incorrect_input_ids" in feature and "incorrect_attention_mask" in feature:
-                incorrect_inputs.append({
-                    "input_ids": feature["incorrect_input_ids"],
-                    "attention_mask": feature["incorrect_attention_mask"]
-                })
-            else:
-                # If incorrect inputs are missing, use the correct inputs as a fallback
-                incorrect_inputs.append({
-                    "input_ids": feature["input_ids"],
-                    "attention_mask": feature["attention_mask"]
-                })
+        # Debug output
+        first_feat = features[0]
+        print("\nData collator debug info:")
+        print(f"Number of features: {len(features)}")
+        print(f"First feature keys: {list(first_feat.keys())}")
         
-        # Collate correct inputs
-        correct_batch = self.tokenizer.pad(
-            correct_inputs,
-            padding=True,
-            max_length=self.max_length,
-            return_tensors="pt"
-        )
+        # Create batch by stacking tensors
+        batch = {}
+        for key in first_feat.keys():
+            if all(key in f for f in features):
+                try:
+                    batch[key] = torch.stack([f[key] for f in features])
+                except Exception as e:
+                    print(f"Error stacking {key}: {e}")
         
-        # Collate incorrect inputs
-        incorrect_batch = self.tokenizer.pad(
-            incorrect_inputs,
-            padding=True,
-            max_length=self.max_length,
-            return_tensors="pt"
-        )
-        
-        return {
-            "input_ids": correct_batch["input_ids"],
-            "attention_mask": correct_batch["attention_mask"],
-            "labels": correct_batch["input_ids"].clone(),
-            "incorrect_input_ids": incorrect_batch["input_ids"],
-            "incorrect_attention_mask": incorrect_batch["attention_mask"]
-        }
+        print(f"Batch keys: {list(batch.keys())}")
+        return batch
 
-# Define custom loss function for BPFT
+# BPFT custom loss trainer
 class BPFTTrainer(Trainer):
-    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+    def compute_loss(self, model, inputs, return_outputs=False):
         # Extract inputs
         input_ids = inputs["input_ids"]
         attention_mask = inputs["attention_mask"]
         labels = inputs["labels"]
-        incorrect_input_ids = inputs["incorrect_input_ids"]
-        incorrect_attention_mask = inputs["incorrect_attention_mask"]
+        incorrect_input_ids = inputs["incorrect_ids"]  # Changed field name
+        incorrect_attention_mask = inputs["incorrect_mask"]  # Changed field name
         
-        # Forward pass for correct response with memory optimization
+        # Compute loss for correct outputs
         outputs = model(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            labels=labels,
-            output_hidden_states=True,
-            use_cache=False  # Disable KV cache to save memory
+            labels=labels
         )
         correct_loss = outputs.loss
         
-        # Forward pass for incorrect response with memory optimization
+        # Compute KL divergence loss between correct and incorrect outputs
         with torch.no_grad():
-            baseline_outputs = model(
-                input_ids=incorrect_input_ids,
-                attention_mask=incorrect_attention_mask,
-                output_hidden_states=True,
-                use_cache=False  # Disable KV cache to save memory
-            )
+            correct_logits = model(
+                input_ids=input_ids,
+                attention_mask=attention_mask
+            ).logits.detach()
         
-        # Calculate KL divergence loss to enforce belief alignment
+        incorrect_outputs = model(
+            input_ids=incorrect_input_ids,
+            attention_mask=incorrect_attention_mask
+        )
+        incorrect_logits = incorrect_outputs.logits
+        
+        # Apply KL divergence to make incorrect less likely
         kl_loss = 0
-        # Focus on output logits where we have valid labels (not -100)
-        valid_pos = (labels != -100).nonzero(as_tuple=True)[0]
+        valid_batch_size = 0
         
-        if len(valid_pos) > 0:
-            # Process logits in smaller chunks to save memory
-            chunk_size = 2  # Further reduced chunk size
-            num_chunks = (len(valid_pos) + chunk_size - 1) // chunk_size
+        for i in range(input_ids.size(0)):
+            # Find positions where labels are not -100 (i.e., non-padding tokens to predict)
+            pred_positions = (labels[i] != -100).nonzero(as_tuple=True)[0]
+            if len(pred_positions) == 0:
+                continue
+                
+            # Get logits for these positions
+            correct_pred_logits = correct_logits[i, pred_positions]
+            incorrect_pred_logits = incorrect_logits[i, pred_positions]
             
-            kl_div = KLDivLoss(reduction="batchmean")
-            
-            for i in range(num_chunks):
-                start_idx = i * chunk_size
-                end_idx = min((i + 1) * chunk_size, len(valid_pos))
-                chunk_pos = valid_pos[start_idx:end_idx]
-                
-                # Get logits for current chunk
-                correct_chunk = outputs.logits[chunk_pos]
-                baseline_chunk = baseline_outputs.logits[chunk_pos]
-                
-                # Calculate softmax and log_softmax in smaller steps to save memory
-                with torch.no_grad():
-                    # Process baseline chunk in smaller sub-chunks
-                    baseline_probs = []
-                    sub_chunk_size = 1  # Process one token at a time
-                    for j in range(0, baseline_chunk.size(0), sub_chunk_size):
-                        sub_chunk = baseline_chunk[j:j+sub_chunk_size]
-                        sub_probs = softmax(sub_chunk, dim=-1)
-                        baseline_probs.append(sub_probs)
-                        del sub_chunk
-                        torch.cuda.empty_cache()
-                    baseline_probs = torch.cat(baseline_probs, dim=0)
-                
-                # Process correct chunk in smaller sub-chunks
-                correct_log_probs = []
-                for j in range(0, correct_chunk.size(0), sub_chunk_size):
-                    sub_chunk = correct_chunk[j:j+sub_chunk_size]
-                    sub_log_probs = log_softmax(sub_chunk, dim=-1)
-                    correct_log_probs.append(sub_log_probs)
-                    del sub_chunk
-                    torch.cuda.empty_cache()
-                correct_log_probs = torch.cat(correct_log_probs, dim=0)
-                
-                # Calculate KL divergence for chunk
-                chunk_kl_loss = kl_div(correct_log_probs, baseline_probs)
-                
-                # Accumulate loss
-                kl_loss += chunk_kl_loss
-                
-                # Clear chunk tensors
-                del correct_chunk
-                del baseline_chunk
-                del baseline_probs
-                del correct_log_probs
-                torch.cuda.empty_cache()
-            
-            # Average KL loss across chunks
-            kl_loss /= num_chunks
+            # Compute KL divergence
+            kl_criterion = KLDivLoss(reduction="batchmean")
+            kl = kl_criterion(
+                log_softmax(incorrect_pred_logits, dim=-1),
+                softmax(correct_pred_logits, dim=-1)
+            )
+            kl_loss += kl
+            valid_batch_size += 1
+        
+        if valid_batch_size > 0:
+            kl_loss = kl_loss / valid_batch_size
+        else:
+            kl_loss = torch.tensor(0.0, device=correct_loss.device)
         
         # Combine losses
         total_loss = correct_loss + LAMBDA * kl_loss
         
-        # Clear unnecessary tensors to free memory
-        del outputs.logits
-        del baseline_outputs.logits
-        del outputs.hidden_states
-        del baseline_outputs.hidden_states
+        # Free up memory
         torch.cuda.empty_cache()
         
         return (total_loss, outputs) if return_outputs else total_loss
 
-# Configure training arguments with memory optimizations
+# DeepSpeed configuration
+deepspeed_config = {
+    "zero_optimization": {
+        "stage": 2,
+        "offload_optimizer": {
+            "device": "cpu",
+            "pin_memory": True
+        },
+        "contiguous_gradients": True,
+        "overlap_comm": True
+    },
+    "fp16": {
+        "enabled": True,
+        "loss_scale": 0,
+        "loss_scale_window": 1000,
+        "hysteresis": 2,
+        "min_loss_scale": 1
+    },
+    "train_batch_size": BATCH_SIZE * GRADIENT_ACCUMULATION_STEPS
+}
+
+with open("ds_config.json", "w") as f:
+    import json
+    json.dump(deepspeed_config, f, indent=4)
+
+# Update training arguments
 training_args = TrainingArguments(
     output_dir=OUTPUT_DIR,
-    overwrite_output_dir=True,
     num_train_epochs=NUM_EPOCHS,
     per_device_train_batch_size=BATCH_SIZE,
+    per_device_eval_batch_size=BATCH_SIZE,
     gradient_accumulation_steps=GRADIENT_ACCUMULATION_STEPS,
     learning_rate=LEARNING_RATE,
     fp16=True,
     save_strategy="epoch",
+    evaluation_strategy="epoch",
     logging_dir=f"{OUTPUT_DIR}/logs",
     logging_steps=10,
     report_to="tensorboard",
-    gradient_checkpointing=True,  # Enable gradient checkpointing
-    optim="adamw_torch_fused",  # Use fused optimizer for better memory efficiency
-    max_grad_norm=0.5,  # Reduce gradient norm to save memory
-    warmup_ratio=0.1,  # Add warmup to stabilize training
-    lr_scheduler_type="cosine",  # Use cosine learning rate schedule
-    dataloader_pin_memory=False,  # Disable pin memory to save RAM
-    dataloader_num_workers=0,  # Disable multiprocessing to save memory
-    deepspeed="ds_config.json",  # Enable DeepSpeed for memory optimization
-    remove_unused_columns=True,  # Remove unused columns to save memory
-    group_by_length=True,  # Group similar length sequences together
-    length_column_name="length",  # Column name for sequence length
-    gradient_checkpointing_kwargs={"use_reentrant": False},  # Use non-reentrant checkpointing
+    gradient_checkpointing=True,
+    deepspeed="ds_config.json",
+    save_total_limit=3,
+    load_best_model_at_end=True,
+    metric_for_best_model="loss",
+    greater_is_better=False,
+    # Disable dataloader shuffling to help debugging
+    dataloader_drop_last=False,
+    dataloader_num_workers=0  # Avoid multiprocessing issues
 )
 
-# Create trainer
+# Create the trainer
+print("Creating trainer...")
 trainer = BPFTTrainer(
     model=model,
     args=training_args,
     train_dataset=bpft_dataset,
-    data_collator=BPFTDataCollator(tokenizer=tokenizer),
-    tokenizer=tokenizer,
+    eval_dataset=bpft_dataset,
+    data_collator=BPFTDataCollator()
 )
 
-# Train model
-print("Starting BPFT training...")
+# Train
+print("Starting training...")
 trainer.train()
 
-# Save the model
+# Save the final model
 model.save_pretrained(f"{OUTPUT_DIR}/final")
 tokenizer.save_pretrained(f"{OUTPUT_DIR}/final")
-print(f"Model saved to {OUTPUT_DIR}/final")
 
-# Inference example
-def generate_with_bpft(prompt, max_new_tokens=100):
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-    outputs = model.generate(
-        inputs["input_ids"],
-        max_new_tokens=max_new_tokens,
-        temperature=0.7,
-        do_sample=True
+print("Training complete. Model saved to", f"{OUTPUT_DIR}/final")
+
+# Test function
+def test_model(model_path, tokenizer_path, test_question):
+    # Load the fine-tuned model
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+    tokenizer.pad_token = tokenizer.eos_token
+    
+    # Load model with same quantization settings
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path,
+        quantization_config=quantization_config,
+        device_map="auto",
+        torch_dtype=torch.float16
     )
-    return tokenizer.decode(outputs[0], skip_special_tokens=True)
+    
+    # Generate response
+    prompt = f"Question: {test_question}\nAnswer:"
+    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    
+    output_ids = model.generate(
+        inputs["input_ids"],
+        max_new_tokens=100,
+        temperature=0.7,
+        do_sample=True,
+        pad_token_id=tokenizer.eos_token_id
+    )
+    
+    response = tokenizer.decode(output_ids[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
+    return response
 
-# Test the model with a sample prompt
-test_prompt = "What is the capital of France?"
-print(f"Prompt: {test_prompt}")
-print(f"Response: {generate_with_bpft(test_prompt)}")
+# Optional: Test the model with a sample question from the dataset
+if len(train_data["prompts"]) > 0:
+    sample_question = dataset['validation'][0]['question']
+    print("\nTesting model with a sample question:")
+    print("Question:", sample_question)
+    print("Answer:", test_model(f"{OUTPUT_DIR}/final", f"{OUTPUT_DIR}/final", sample_question))
